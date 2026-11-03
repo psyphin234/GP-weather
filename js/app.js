@@ -381,10 +381,8 @@
         return el("th", { scope: "col" }, [d.label, el("br"), el("span", { class: "small muted", text: fmtDay.format(d.mid.valueOf() + 6 * 36e5) })]);
       })))]),
       el("tbody", null, [
-        ["Civil dawn", function (d) { return hm(d.sun.dawn); }],
         ["Sunrise", function (d) { return hm(d.sun.sunrise); }],
         ["Sunset", function (d) { return hm(d.sun.sunset); }],
-        ["Civil dusk", function (d) { return hm(d.sun.dusk); }],
         ["Daylight", function (d) { var m = Math.round((d.sun.sunset - d.sun.sunrise) / 60000); return Math.floor(m / 60) + " h " + String(m % 60).padStart(2, "0"); }],
         ["Moonrise", function (d) { return d.moon.rise ? hm(d.moon.rise) : "none"; }],
         ["Moonset", function (d) { return d.moon.set ? hm(d.moon.set) : "none"; }]
