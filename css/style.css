@@ -118,7 +118,9 @@ p { margin: 6px 0; }
 
 /* ---------------------------------------------------------------- 1. storms */
 .storm-day { margin-bottom: 14px; }
-.day-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.day-head { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.headline { font-size: 1.05rem; }
+.day-head .badge { font-size: 0.85rem; padding: 3px 10px; }
 .grid-scroll { overflow-x: auto; margin-top: 8px; }
 .storm-grid { display: grid; gap: 2px; min-width: 280px; }
 .sg-row { display: grid; grid-template-columns: 4.1rem repeat(24, minmax(0, 1fr)); gap: 1px; align-items: center; }
@@ -193,7 +195,8 @@ table.astro td { font-variant-numeric: tabular-nums; font-weight: 600; }
 /* ---------------------------------------------------------------- SAWS images */
 .chart-grid { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); }
 @media (min-width: 720px) { .chart-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-figure.chart { margin: 12px 0 0; }
+figure.chart { margin: 0; }
+#storm-images figure.chart { margin-top: 12px; }
 figure.chart figcaption { margin-bottom: 4px; }
 .img-open {
   position: relative; display: block; width: 100%; padding: 0; border: 0; margin: 0;

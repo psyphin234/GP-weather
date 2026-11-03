@@ -10,10 +10,8 @@
   //   name  shown on the forecast cards
   //   short shown in the narrow storm grid and night table (keep it under ~10 chars)
   //   lat, lon  decimal degrees (south and west are negative)
-  //   note  optional, shown under the card's name
   var LOCATIONS = [
-    { id: "magalies", name: "Magaliesberg (Tonquani / Hekpoort)", short: "Magalies", lat: -25.81, lon: 27.55,
-      note: "Kloofs and the valley floor can be much colder than this on clear, calm nights" },
+    { id: "magalies", name: "Magaliesberg (Tonquani / Hekpoort)", short: "Magalies", lat: -25.81, lon: 27.55 },
     { id: "hbp",      name: "Hartbeespoort",           short: "H'poort",   lat: -25.74, lon: 27.85 },
     { id: "cradle",   name: "Cradle of Humankind",     short: "Cradle",    lat: -25.97, lon: 27.73 },
     { id: "pta",      name: "Pretoria",                short: "Pretoria",  lat: -25.746, lon: 28.188 },
@@ -57,22 +55,11 @@
   //   w, h   the image's size in pixels (reserves the space while it loads)
   var FW = "https://www.flywatch.com/api/weather/images/individual/";
   var IMAGES = [
-    { panel: "storm", title: "SAWS thunderstorm probability, today", url: FW + "tsprob_d1.gif", w: 800, h: 600,
-      note: "Whole of SA. The legend at the bottom says which hours the shading and red lines show; “Z” times are UTC (SAST = UTC + 2)." },
-    { panel: "radar", title: "Irene radar, 50 km",  url: FW + "IRS50.gif", w: 750, h: 691 },
-    { panel: "radar", title: "Irene radar, 300 km", url: FW + "IRS.gif",   w: 750, h: 691 }
+    { panel: "storm", title: "SAWS TS probability", url: FW + "tsprob_d1.gif", w: 800, h: 600 },
+    { panel: "radar", title: "Irene 50 km",  url: FW + "IRS50.gif", w: 750, h: 691 },
+    { panel: "radar", title: "Irene 300 km", url: FW + "IRS.gif",   w: 750, h: 691 }
   ];
   var RADAR_SOURCE_PAGE = "https://www.flywatch.com/tracking/weather/radar";
-
-  // Buttons under the radar images.
-  var RADAR_LINKS = [
-    { label: "FlyWatch radar page", url: RADAR_SOURCE_PAGE },
-    { label: "Windy: satellite over Gauteng", url: "https://www.windy.com/-Satellite-satellite?satellite,-26.000,28.000,8" },
-    { label: "Windy: thunderstorm / CAPE layer", url: "https://www.windy.com/-CAPE-Index-cape?cape,-26.000,28.000,8" }
-  ];
-
-  // When the link panels were last checked by hand (shown as their "last updated").
-  var LINKS_CHECKED = "2026-11-03";
 
   window.SARWX_CONFIG = {
     LOCATIONS: LOCATIONS,
@@ -83,8 +70,6 @@
     NIGHT: NIGHT,
     IMAGES: IMAGES,
     RADAR_SOURCE_PAGE: RADAR_SOURCE_PAGE,
-    RADAR_LINKS: RADAR_LINKS,
-    LINKS_CHECKED: LINKS_CHECKED,
     TIMEZONE: "Africa/Johannesburg"
   };
 })();

@@ -55,13 +55,7 @@
     return el("span", { class: "arrow", "aria-hidden": "true",
       html: '<svg viewBox="0 0 20 20" width="16" height="16" style="transform:rotate(' + r + 'deg)"><path d="M10 2 L15 12 L10 9.5 L5 12 Z" fill="currentColor"/><rect x="9" y="9" width="2" height="9" fill="currentColor"/></svg>' });
   }
-  function setFooter(panel, source, updated) {
-    var f = $(panel + "-meta");
-    if (!f) return;
-    f.textContent = "";
-    f.appendChild(el("span", null, ["Source: ", source]));
-    f.appendChild(el("span", { class: "upd" }, ["Updated: ", updated]));
-  }
+
   function link(label, url, cls) {
     return el("a", { href: url, target: "_blank", rel: "noopener noreferrer", class: cls || null }, [label]);
   }
@@ -141,14 +135,14 @@
   }
 
   // ---------------------------------------------------------------- 1. storms
-  var LEVEL_TEXT = ["Low", "Possible", "Elevated", "Thunderstorm forecast"];
+  var LEVEL_TEXT = ["Low", "Possible", "Likely", "Storm"];
 
   function renderStorms(now) {
     var box = $("storm-body");
     box.textContent = "";
     if (!cache) { box.appendChild(el("p", { class: "muted", text: "Waiting for forecast data…" })); return; }
     var per = cache.data.map(function (loc) { return W.stormDays(loc, now, C.STORM); });
-    var detail = el("p", { class: "tap-detail", id: "storm-tap", "aria-live": "polite", text: "Tap a square for that hour's numbers." });
+    var detail = el("p", { class: "tap-detail", id: "storm-tap", "aria-live": "polite", hidden: true });
 
     [0].forEach(function (k) { // today only (owner, 2026-11-03)
       var label = "Today";
@@ -167,23 +161,13 @@
         if (s.maxPop > maxPop) maxPop = s.maxPop;
       });
       var maxLvl = per.reduce(function (m, d) { return Math.max(m, d[k].summary.maxLevel); }, 0);
-      var head = el("div", { class: "day-head lv" + maxLvl }, [
-        el("h3", null, [label, dayStart ? el("span", { class: "muted small" }, [" " + dayS(dayStart)]) : null]),
-        el("span", { class: "badge lv" + maxLvl, text: LEVEL_TEXT[maxLvl] })
+      var head = el("div", { class: "day-head" }, [
+        el("span", { class: "badge lv" + maxLvl, text: LEVEL_TEXT[maxLvl] }),
+        el("strong", { class: "headline", text: tsAreas.length
+          ? hmS(first) + "–" + hmS(last + 3600) + " · " + tsAreas.length + " of " + per.length + " areas" + (hail ? " · hail" : "")
+          : "No storms forecast" })
       ]);
       var lines = [];
-      if (tsAreas.length) {
-        lines.push(el("p", { class: "summary" }, [
-          el("strong", { text: "Thunderstorms forecast at " + tsAreas.length + " of " + per.length + " areas" }),
-          ", between about " + hmS(first) + " and " + hmS(last + 3600) + (hail ? ". Hail possible." : ".")
-        ]));
-        lines.push(el("p", { class: "small muted", text: tsAreas.join(", ") }));
-      } else {
-        lines.push(el("p", { class: "summary", text: "No thunderstorm hours in the model for these areas." }));
-      }
-      lines.push(el("p", { class: "small" }, [
-        "Highest CAPE " + Math.round(maxCape) + " J/kg (" + maxCapeAt + ") · highest rain chance " + maxPop + "%"
-      ]));
 
       // grid: rows = areas, 24 hourly cells
       var grid = el("div", { class: "storm-grid", role: "table", "aria-label": label + " storm risk by hour" });
@@ -209,19 +193,18 @@
       });
       grid.addEventListener("click", function (ev) {
         var t = ev.target.closest("[data-detail]");
-        if (t) $("storm-tap").textContent = t.getAttribute("data-detail");
+        if (t) { var d = $("storm-tap"); d.textContent = t.getAttribute("data-detail"); d.hidden = false; }
       });
       box.appendChild(el("div", { class: "storm-day" }, [head].concat(lines).concat([el("div", { class: "grid-scroll" }, [grid])])));
     });
     box.appendChild(detail);
     box.appendChild(el("div", { class: "legend" }, [
       el("span", null, [el("i", { class: "sg-c lv0" }), " Low"]),
-      el("span", null, [el("i", { class: "sg-c lv1" }), " Possible: CAPE ≥ " + C.STORM.cape1 + " and rain ≥ " + C.STORM.pop1 + "%"]),
-      el("span", null, [el("i", { class: "sg-c lv2" }), " Elevated: CAPE ≥ " + C.STORM.cape2 + " and rain ≥ " + C.STORM.pop2 + "%"]),
-      el("span", null, [el("i", { class: "sg-c lv3" }), " Thunderstorm in the forecast (WMO 95–99)"]),
-      el("span", null, [el("i", { class: "sg-c lv0 now" }), " This hour"])
+      el("span", null, [el("i", { class: "sg-c lv1" }), " Possible"]),
+      el("span", null, [el("i", { class: "sg-c lv2" }), " Likely"]),
+      el("span", null, [el("i", { class: "sg-c lv3" }), " Storm"]),
+      el("span", null, [el("i", { class: "sg-c lv0 now" }), " Now"])
     ]));
-    setFooter("storm", el("span", null, [link("Open-Meteo", "https://open-meteo.com/"), " (grid); SAWS via FlyWatch (chart)"]), stamp(cache.fetchedAt));
   }
 
   // ---------------------------------------------------------------- 2. point forecasts
@@ -238,20 +221,18 @@
           night = W.nightSummary(loc, now, C.NIGHT), h = loc.hourly;
       var card = el("article", { class: "card", id: "area-" + L.id }, [
         el("header", { class: "card-head" }, [
-          el("h3", { text: L.name }),
-          el("span", { class: "muted small", text: Math.round(loc.elevation) + " m · " + L.lat.toFixed(2) + ", " + L.lon.toFixed(2) })
+          el("h3", { text: L.name })
         ]),
-        L.note ? el("p", { class: "note small", text: L.note }) : null,
         el("div", { class: "now-row" }, [
           el("span", { class: "big", text: deg(c.temperature_2m) }),
           el("span", { class: "now-wx" }, [
             el("strong", { text: W.wmoText(c.weather_code) }),
-            el("span", { class: "small muted", text: "Feels like " + deg(c.apparent_temperature) + " · now (" + hmS(c.time) + ")" })
+            el("span", { class: "small muted", text: "Feels " + deg(c.apparent_temperature) })
           ]),
           n24.thunder ? el("span", { class: "badge lv3", text: "Thunder next 24 h" }) : null
         ]),
         el("dl", { class: "stats" }, [
-          stat(night && night.window.running ? "Low rest of night" : "Overnight low", deg(night && night.low), night ? [el("span", { class: "small muted", text: " " + hmS(night.lowAt) })] : null),
+          stat("Tonight low", deg(night && night.low), night ? [el("span", { class: "small muted", text: " " + hmS(night.lowAt) })] : null),
           stat("Dew point", deg(c.dew_point_2m), [el("span", { class: "small muted", text: " RH " + c.relative_humidity_2m + "%" })]),
           stat("Wind", W.compass(c.wind_direction_10m) + " " + Math.round(c.wind_speed_10m) + " km/h", [arrow(c.wind_direction_10m)]),
           stat("Gusts", Math.round(c.wind_gusts_10m) + " km/h", [el("span", { class: "small muted", text: " max 24 h " + Math.round(n24.gustMax || 0) })]),
@@ -281,12 +262,11 @@
         el("tbody", null, rows)
       ]);
       card.appendChild(el("details", { "data-keep": "hourly-" + L.id }, [
-        el("summary", { text: "Next 24 hours, hour by hour" }),
+        el("summary", { text: "Hourly, next 24 h" }),
         el("div", { class: "table-scroll" }, [table])
       ]));
       box.appendChild(card);
     });
-    setFooter("points", link("Open-Meteo", "https://open-meteo.com/"), stamp(cache.fetchedAt));
   }
 
   // ---------------------------------------------------------------- 3. night
@@ -298,8 +278,7 @@
     var ref = sums.filter(Boolean)[0];
     if (ref) {
       box.appendChild(el("p", { class: "summary" }, [
-        el("strong", { text: ref.window.running ? "Tonight (now until sunrise)" : "Tonight" }),
-        ": sunset " + hmS(ref.window.start) + " → sunrise " + hmS(ref.window.end) + " (" + C.LOCATIONS[0].short + "; within a few minutes elsewhere)"
+        el("strong", { text: "Sunset " + hmS(ref.window.start) + " → sunrise " + hmS(ref.window.end) })
       ]));
     }
     var list = el("div", { class: "night-list" });
@@ -312,7 +291,7 @@
         el("dl", { class: "night-nums" }, [
           stat("Low", deg(s.low), [el("span", { class: "small muted", text: " " + hmS(s.lowAt) })]),
           stat("Feels", deg(s.feelsMin)),
-          stat("Wind chill", s.windChill === null ? "n/a" : deg(s.windChill), s.windChill === null ? [el("span", { class: "small muted", text: " (>10° or calm)" })] : null),
+          stat("Wind chill", s.windChill === null ? "–" : deg(s.windChill)),
           stat("Rain", mm(s.rain), [el("span", { class: "small muted", text: " " + (s.popMax || 0) + "%" })]),
           stat("Clear sky", s.clearHours + " of " + s.hours + " h"),
           stat("Gusts", Math.round(s.gustMax || 0) + " km/h")
@@ -320,12 +299,6 @@
       ]));
     });
     box.appendChild(list);
-    box.appendChild(el("ul", { class: "advice small" }, [
-      el("li", { text: "Clear and calm nights cool fastest: kloofs, valley floors and dam basins can be several degrees colder than these grid figures." }),
-      el("li", { text: "Wet clothing plus wind can cause hypothermia well above freezing, even at 10–15 °C." }),
-      el("li", { text: "Wind chill uses the Environment Canada formula (only below 10 °C with wind over 4.8 km/h). \"Feels\" is Open-Meteo's apparent temperature." })
-    ]));
-    setFooter("night", link("Open-Meteo", "https://open-meteo.com/"), stamp(cache.fetchedAt));
   }
 
   // ---------------------------------------------------------------- 4. sun & moon
@@ -386,8 +359,6 @@
         ])
       ])
     ]));
-    box.appendChild(el("p", { class: "small muted", text: "Civil twilight: sun 6° below the horizon; enough light to work outside without torches. Times for " + L.name + "." }));
-    setFooter("astro", "calculated on this device (Meeus formulas; sun ±2 min, moon ±10 min): no download", hm(nowD) + " (" + fmtDayLong.format(nowD) + ")");
   }
 
   // ---------------------------------------------------------------- SAWS images (via FlyWatch)
@@ -397,17 +368,16 @@
 
   function figure(x) {
     var img = el("img", { alt: x.title + " (SAWS chart)", width: String(x.w), height: String(x.h), decoding: "async" });
-    var msg = el("p", { class: "small warn", hidden: true }, ["Couldn't load this image. ", link("Open the FlyWatch page", C.RADAR_SOURCE_PAGE)]);
+    var msg = el("p", { class: "small warn", hidden: true }, ["Image not loading. ", link("Open FlyWatch", C.RADAR_SOURCE_PAGE)]);
     var btn = el("button", { type: "button", class: "img-open", "aria-label": "Show " + x.title + " full screen" },
-                 [img, el("span", { class: "img-hint", "aria-hidden": "true", text: "\u2922 full screen" })]);
+                 [img, el("span", { class: "img-hint", "aria-hidden": "true", text: "\u2922" })]);
     img.addEventListener("error", function () { msg.hidden = false; btn.hidden = true; });
     img.addEventListener("load", function () { msg.hidden = true; btn.hidden = false; });
     btn.addEventListener("click", function () { openViewer(img.currentSrc || img.src, x.title); });
     shownImgs.push({ img: img, url: x.url });
     return el("figure", { class: "chart" }, [
       el("figcaption", null, [el("strong", { text: x.title })]),
-      btn, msg,
-      x.note ? el("p", { class: "small muted", text: x.note }) : null
+      btn, msg
     ]);
   }
 
@@ -420,19 +390,7 @@
       if (x.panel === "storm") stormBox.appendChild(figure(x));
       else grid.appendChild(figure(x));
     });
-    stormBox.appendChild(el("p", { class: "small muted", id: "storm-img-meta" }));
     radarBox.appendChild(grid);
-    radarBox.appendChild(el("p", { class: "small muted", text: "Each image has its own time printed on it: check it, as the image can be older than the reload time. Tap an image for full screen." }));
-    var rl = el("div", { class: "btns" });
-    C.RADAR_LINKS.forEach(function (x) { rl.appendChild(link(x.label, x.url, "btn")); });
-    radarBox.appendChild(rl);
-  }
-
-  function imageFooters() {
-    var when = imagesLoadedAt ? "reloaded " + stamp(imagesLoadedAt) : "not loaded yet";
-    var m = $("storm-img-meta");
-    if (m) { m.textContent = ""; m.appendChild(el("span", null, ["Chart: SAWS via ", link("FlyWatch", C.RADAR_SOURCE_PAGE), ", " + when])); }
-    setFooter("radar", el("span", null, ["SAWS (Irene radar) via ", link("FlyWatch", C.RADAR_SOURCE_PAGE)]), "images " + when);
   }
 
   function loadImages(minGap) {
@@ -441,7 +399,6 @@
     imagesLoadedAt = Date.now();
     var t = Math.floor(imagesLoadedAt / 60000); // new URL each reload, so the browser fetches it again
     shownImgs.forEach(function (x) { x.img.src = x.url + "?t=" + t; });
-    imageFooters();
   }
 
   // ---------------------------------------------------------------- full-screen viewer
@@ -456,7 +413,7 @@
     var close = el("button", { type: "button", class: "viewer-close", "aria-label": "Close full screen", text: "\u2715" });
     viewerStage = el("div", { class: "viewer-stage" }, [viewerImg]);
     viewer = el("div", { class: "viewer", role: "dialog", "aria-modal": "true", "aria-label": "Image, full screen", hidden: true }, [
-      el("div", { class: "viewer-bar" }, [viewerTitle, el("span", { class: "viewer-tip", text: "tap image to zoom" }), close]),
+      el("div", { class: "viewer-bar" }, [viewerTitle, close]),
       viewerStage
     ]);
     document.body.appendChild(viewer);
@@ -524,16 +481,9 @@
     maybeFetch(false);
     loadImages(C.REFRESH_MIN);
     if (Math.floor(Date.now() / 3600000) !== lastHour) renderAll();
-    else { renderStatus(); refreshAges(); }
+    else renderStatus();
   }
-  function refreshAges() {
-    if (imagesLoadedAt) imageFooters();
-    if (!cache) return;
-    ["storm", "points", "night"].forEach(function (p) {
-      var u = document.querySelector("#" + p + "-meta .upd");
-      if (u) u.textContent = "Updated: " + stamp(cache.fetchedAt);
-    });
-  }
+
 
   function init() {
     var sel = $("astro-loc");

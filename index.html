@@ -17,59 +17,49 @@
 <body>
   <header class="top">
     <div class="top-inner">
-      <h1>SAR Weather <span class="muted">· Greater Gauteng</span></h1>
-      <p class="disclaimer"><strong>Planning aid only, not an official forecast.</strong> Check SAWS warnings and official aviation products before you decide.</p>
+      <h1>SAR Weather <span class="muted">· Gauteng</span></h1>
     </div>
     <div class="status" role="status">
       <span id="status-text">Loading…</span>
       <button type="button" id="refresh" class="btn small">Refresh</button>
     </div>
     <nav class="jump" aria-label="Panels">
-      <a href="#storm">Storms</a><a href="#points">Areas</a><a href="#night">Night</a><a href="#astro">Sun &amp; moon</a><a href="#radar">Radar</a>
+      <a href="#radar">Radar</a><a href="#storm">Storms</a><a href="#points">Areas</a><a href="#night">Tonight</a><a href="#astro">Sun &amp; moon</a>
     </nav>
   </header>
 
   <main>
+    <section class="panel" id="radar" aria-labelledby="radar-h">
+      <h2 id="radar-h">Radar</h2>
+      <div id="radar-body"></div>
+    </section>
+
     <section class="panel" id="storm" aria-labelledby="storm-h">
-      <h2 id="storm-h"><span class="num">1</span> Thunderstorm risk today</h2>
+      <h2 id="storm-h">Thunderstorms today</h2>
       <div id="storm-body"></div>
       <div id="storm-images"></div>
-      <p class="meta" id="storm-meta"></p>
     </section>
 
     <section class="panel" id="points" aria-labelledby="points-h">
-      <h2 id="points-h"><span class="num">2</span> Point forecasts for SAR areas</h2>
-      <p class="small muted">Each card is one model grid point (cells several km wide), so ridges, kloofs and dams can differ. “Now” is the model's current estimate, not a measurement.</p>
+      <h2 id="points-h">Areas</h2>
       <div id="points-body" class="cards"></div>
-      <p class="meta" id="points-meta"></p>
     </section>
 
     <section class="panel" id="night" aria-labelledby="night-h">
-      <h2 id="night-h"><span class="num">3</span> Night survivability</h2>
+      <h2 id="night-h">Tonight</h2>
       <div id="night-body"></div>
-      <p class="meta" id="night-meta"></p>
     </section>
 
     <section class="panel" id="astro" aria-labelledby="astro-h">
-      <h2 id="astro-h"><span class="num">4</span> Sun, twilight &amp; moon</h2>
-      <label class="small" for="astro-loc">Area </label><select id="astro-loc"></select>
+      <h2 id="astro-h">Sun &amp; moon</h2>
+      <select id="astro-loc" aria-label="Area for sun and moon times"></select>
       <div id="astro-body"></div>
-      <p class="meta" id="astro-meta"></p>
     </section>
-
-
-    <section class="panel" id="radar" aria-labelledby="radar-h">
-      <h2 id="radar-h"><span class="num">5</span> Radar</h2>
-      <div id="radar-body"></div>
-      <p class="meta" id="radar-meta"></p>
-    </section>
-
   </main>
 
   <footer class="foot">
-    <p><strong>Disclaimer:</strong> a planning aid for the team, built from public model data. It is <strong>not an official forecast</strong> and can be wrong, late or missing. Model grid points miss local effects (kloofs, ridges, dams, storm cells). For decisions use SAWS warnings and official aviation products, and what you see on the ground.</p>
-    <p>Weather data by <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo.com</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>). Radar images © South African Weather Service, via <a href="https://www.flywatch.com/tracking/weather/radar" target="_blank" rel="noopener noreferrer">FlyWatch</a>. Sun and moon calculated on your device. This page is unlisted, not private: please keep the link within the team.</p>
-    <noscript><p class="warn">This page needs JavaScript. Without it, go straight to <a href="https://www.weathersa.co.za/warnings">SAWS warnings</a> or <a href="https://aviation.weathersa.co.za/">SAWS aviation</a>.</p></noscript>
+    <p><strong>Planning aid only, not an official forecast.</strong> Data: <a href="https://open-meteo.com/" target="_blank" rel="noopener noreferrer">Open-Meteo</a> (<a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener noreferrer">CC BY 4.0</a>); radar and TS chart © SAWS via <a href="https://www.flywatch.com/tracking/weather/radar" target="_blank" rel="noopener noreferrer">FlyWatch</a>.</p>
+    <noscript><p class="warn">This page needs JavaScript.</p></noscript>
   </footer>
 
   <script src="js/config.js"></script>
