@@ -148,11 +148,17 @@
   }
 
   // ---------------------------------------------------------------- status bar
-  // "now 07:30 UTC" next to the radar heading, to compare with the image times
+  /* Radar staleness reminder. FlyWatch's images carry no date header and no CORS,
+     so the page can't read the time printed on them (checked 2026-11-03); instead
+     it works out the cutoff for the reader: an image stamped before it is stale. */
   var fmtUTC = new Intl.DateTimeFormat("en-ZA", { timeZone: "UTC", hour: "2-digit", minute: "2-digit", hour12: false });
   function renderUtcNow() {
-    var u = $("utc-now");
-    if (u) u.textContent = " · now " + fmtUTC.format(new Date()) + " UTC";
+    var b = $("radar-check");
+    if (!b) return;
+    var now = new Date(), cutoff = new Date(now.valueOf() - C.RADAR_STALE_MIN * 60000);
+    b.textContent = "";
+    b.appendChild(el("strong", { text: "\u26a0 Image time should be after " + fmtUTC.format(cutoff) + " UTC" }));
+    b.appendChild(document.createTextNode(" (now " + fmtUTC.format(now) + " UTC). Earlier = stale."));
   }
 
   function renderStatus() {

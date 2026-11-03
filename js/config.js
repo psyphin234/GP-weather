@@ -62,6 +62,10 @@
   ];
   var RADAR_SOURCE_PAGE = "https://www.flywatch.com/tracking/weather/radar";
 
+  // The radar banner says an image stamped more than this many minutes ago is stale.
+  // (The page can't read the image time itself; the reader compares.)
+  var RADAR_STALE_MIN = 30;
+
   window.SARWX_CONFIG = {
     LOCATIONS: LOCATIONS,
     ASTRO_DEFAULT: ASTRO_DEFAULT,
@@ -71,6 +75,7 @@
     NIGHT: NIGHT,
     IMAGES: IMAGES,
     RADAR_SOURCE_PAGE: RADAR_SOURCE_PAGE,
+    RADAR_STALE_MIN: RADAR_STALE_MIN,
     TIMEZONE: "Africa/Johannesburg"
   };
 })();

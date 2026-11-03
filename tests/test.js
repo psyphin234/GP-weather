@@ -220,6 +220,7 @@
   report(Object.keys(ids).every(function (k) { return ids[k] === 1; }), "location ids are unique");
   report(C.LOCATIONS.every(function (l) { return l.lat < -24 && l.lat > -28 && l.lon > 26 && l.lon < 30; }), "every location is in greater Gauteng");
   report(C.LOCATIONS.some(function (l) { return l.id === C.ASTRO_DEFAULT; }), "astro default is a location id");
+  report(C.RADAR_STALE_MIN >= 10 && C.RADAR_STALE_MIN <= 120, "radar stale cutoff is a sensible number of minutes");
   report(C.REFRESH_MIN >= 10 && C.REFRESH_MIN <= 15 && C.MIN_MANUAL_MIN >= 10, "refresh interval is 10–15 min, manual at least 10");
   var allUrls = [].concat(C.IMAGES, [{ url: C.RADAR_SOURCE_PAGE }]).map(function (x) { return x.url; }).filter(Boolean);
   report(allUrls.every(function (u) { return /^https:\/\//.test(u); }), "all links and images are https");

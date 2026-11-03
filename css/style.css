@@ -85,8 +85,12 @@ main { padding-top: 12px; padding-bottom: 12px; }
 .panel h2 { font-size: 1.15rem; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
 #radar-h, #points-h { flex-wrap: wrap; align-items: baseline; gap: 2px 10px; }
 .h-note { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); }
-.utc-note { font-size: 0.8rem; font-weight: 600; color: var(--warn); }
-#utc-now { white-space: nowrap; }
+.radar-check {
+  margin: 0 0 10px; padding: 6px 10px; border-radius: 8px; font-size: 0.85rem; line-height: 1.35;
+  background: color-mix(in srgb, var(--warn) 16%, transparent); border: 1px solid color-mix(in srgb, var(--warn) 55%, transparent);
+  color: var(--text);
+}
+.radar-check strong { color: var(--warn); }
 .panel h3 { font-size: 1rem; }
 .num {
   display: inline-grid; place-items: center; width: 1.6em; height: 1.6em; border-radius: 50%;
