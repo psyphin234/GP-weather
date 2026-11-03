@@ -17,11 +17,7 @@
     { id: "hbp",      name: "Hartbeespoort",           short: "H'poort",   lat: -25.74, lon: 27.85 },
     { id: "cradle",   name: "Cradle of Humankind",     short: "Cradle",    lat: -25.97, lon: 27.73 },
     { id: "pta",      name: "Pretoria",                short: "Pretoria",  lat: -25.746, lon: 28.188 },
-    { id: "jhb",      name: "Johannesburg",            short: "Joburg",    lat: -26.204, lon: 28.047 },
-    { id: "suiker",   name: "Suikerbosrand",           short: "Suikerbos", lat: -26.49, lon: 28.22 },
-    { id: "dinokeng", name: "Dinokeng",                short: "Dinokeng",  lat: -25.39, lon: 28.40 },
-    { id: "bronk",    name: "Bronkhorstspruit Dam",    short: "Bronk Dam", lat: -25.89, lon: 28.73 },
-    { id: "vaal",     name: "Vaal Dam",                short: "Vaal Dam",  lat: -26.88, lon: 28.12 }
+    { id: "jhb",      name: "Johannesburg",            short: "Joburg",    lat: -26.204, lon: 28.047 }
   ];
 
   // Sun and moon times: computed on the device for the area picked in that
@@ -51,40 +47,8 @@
     clearCloud: 25    // average cloud cover below this (%): "Clear sky"
   };
 
-  // ---- METAR / TAF stations ---------------------------------------------------
-  // aviationweather.gov's data API sends no CORS header (checked 2026-11-03), so
-  // a browser page can't read it. These are plain links instead.
-  //   awc: false = no reports on aviationweather.gov in the 72 h before
-  //        2026-11-03 (FAGM had only 2), so use SAWS METAR History for those.
-  var STATIONS = [
-    { icao: "FAWB", name: "Wonderboom",        awc: true },
-    { icao: "FAWK", name: "Waterkloof AFB",    awc: true },
-    { icao: "FAIR", name: "Pretoria Irene",    awc: false },
-    { icao: "FALA", name: "Lanseria",          awc: true },
-    { icao: "FAOR", name: "OR Tambo",          awc: true },
-    { icao: "FAGC", name: "Grand Central",     awc: false },
-    { icao: "FAGM", name: "Rand Airport",      awc: false }
-  ];
-
-  // ---- SAWS links ---------------------------------------------------------------
-  // aviation.weathersa.co.za needs a personal login. The page ONLY links to it:
-  // nothing from that site is fetched, embedded or shown as an image here.
-  // url: null = exact page not known yet; the button opens the site's home page.
-  var SAWS_AVIATION_HOME = "https://aviation.weathersa.co.za/";
-  var SAWS_AVIATION = [
-    { label: "Radar (Irene)",          url: "https://aviation.weathersa.co.za/ftpfile.php?f=IRS.gif&type=RADAR" },
-    { label: "TS Probability",         url: "https://aviation.weathersa.co.za/#showTSProbability" },
-    { label: "Spot Graph Map",         url: null },
-    { label: "Low Level Wind Profiles", url: null },
-    { label: "Graphic SIGMET",         url: null },
-    { label: "METAR History",          url: null }
-  ];
-  var SAWS_PUBLIC = [
-    { label: "SAWS warnings (public)", url: "https://www.weathersa.co.za/warnings" },
-    { label: "SAWS home (public)",     url: "https://www.weathersa.co.za/" }
-  ];
-
-  // Public radar / satellite links (no login).
+  // Radar panel buttons. SAWS images can't be embedded (login + SameSite=Strict
+  // session cookie, checked 2026-11-03), so they are links that open on SAWS.
   var RADAR_LINKS = [
     { label: "SAWS aviation radar: Irene (login)", url: "https://aviation.weathersa.co.za/ftpfile.php?f=IRS.gif&type=RADAR" },
     { label: "Windy: satellite over Gauteng", url: "https://www.windy.com/-Satellite-satellite?satellite,-26.000,28.000,8" },
@@ -101,10 +65,6 @@
     MIN_MANUAL_MIN: MIN_MANUAL_MIN,
     STORM: STORM,
     NIGHT: NIGHT,
-    STATIONS: STATIONS,
-    SAWS_AVIATION_HOME: SAWS_AVIATION_HOME,
-    SAWS_AVIATION: SAWS_AVIATION,
-    SAWS_PUBLIC: SAWS_PUBLIC,
     RADAR_LINKS: RADAR_LINKS,
     LINKS_CHECKED: LINKS_CHECKED,
     TIMEZONE: "Africa/Johannesburg"

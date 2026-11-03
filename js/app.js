@@ -150,8 +150,8 @@
     var per = cache.data.map(function (loc) { return W.stormDays(loc, now, C.STORM); });
     var detail = el("p", { class: "tap-detail", id: "storm-tap", "aria-live": "polite", text: "Tap a square for that hour's numbers." });
 
-    [0, 1].forEach(function (k) {
-      var label = k === 0 ? "Today" : "Tomorrow";
+    [0].forEach(function (k) { // today only (owner, 2026-11-03)
+      var label = "Today";
       var dayStart = per[0][k].hours.length ? per[0][k].hours[0].t : null;
       // region summary
       var tsAreas = [], first = null, last = null, maxCape = 0, maxCapeAt = "", maxPop = 0, hail = false;
@@ -390,56 +390,15 @@
     setFooter("astro", "calculated on this device (Meeus formulas; sun ±2 min, moon ±10 min): no download", hm(nowD) + " (" + fmtDayLong.format(nowD) + ")");
   }
 
-  // ---------------------------------------------------------------- 5–7. link panels
-  function awcUrl(ids) {
-    return "https://aviationweather.gov/data/metar/?id=" + ids.join(",") + "&hours=0&decoded=yes&include_taf=yes";
-  }
-  function sawsUrl(item) { return item.url || C.SAWS_AVIATION_HOME; }
-
+  // ---------------------------------------------------------------- 5. radar (links only)
   function renderLinks() {
-    // METAR / TAF
-    var m = $("metar-body");
-    m.textContent = "";
-    m.appendChild(el("p", { class: "small" }, [
-      "aviationweather.gov's data API doesn't allow browser requests from other sites (no CORS header), so this panel links out instead of showing the reports. ",
-      link("All 7 stations: METAR + TAF", awcUrl(C.STATIONS.map(function (s) { return s.icao; })), "btn")
-    ]));
-    var ul = el("ul", { class: "stations" });
-    var hist = C.SAWS_AVIATION.filter(function (x) { return x.label === "METAR History"; })[0];
-    C.STATIONS.forEach(function (s) {
-      ul.appendChild(el("li", null, [
-        el("span", { class: "icao", text: s.icao }), " " + s.name + " ",
-        link("aviationweather.gov", awcUrl([s.icao]), "btn small"),
-        !s.awc ? el("span", { class: "small muted" }, [" rarely on aviationweather.gov: try ", link("SAWS METAR History (login)", sawsUrl(hist || {}))]) : null
-      ]));
-    });
-    m.appendChild(ul);
-    setFooter("metar", "links to aviationweather.gov and SAWS (reports open there)", "links checked " + C.LINKS_CHECKED);
-
-    // radar
     var r = $("radar-body");
     r.textContent = "";
-    r.appendChild(el("p", { class: "small", text: "RainViewer was checked on " + C.LINKS_CHECKED + ": its coverage map is empty over South Africa (no SA radar in its free feed), so there is no radar map on this page. Use these:" }));
     var rl = el("div", { class: "btns" });
     C.RADAR_LINKS.forEach(function (x) { rl.appendChild(link(x.label, x.url, "btn")); });
     r.appendChild(rl);
-    setFooter("radar", "links only (SAWS aviation needs your own login)", "links checked " + C.LINKS_CHECKED);
-
-    // quick links
-    var q = $("links-body");
-    q.textContent = "";
-    var pub = el("div", { class: "btns" });
-    C.SAWS_PUBLIC.forEach(function (x) { pub.appendChild(link(x.label, x.url, "btn")); });
-    var av = el("div", { class: "btns" });
-    C.SAWS_AVIATION.forEach(function (x) {
-      av.appendChild(link(x.label + (x.url ? "" : " (via menu)"), sawsUrl(x), "btn"));
-    });
-    q.appendChild(el("h3", { text: "SAWS public" }));
-    q.appendChild(pub);
-    q.appendChild(el("h3", { text: "SAWS aviation (your own login)" }));
-    q.appendChild(av);
-    q.appendChild(el("p", { class: "small muted", text: "Buttons marked “via menu” open the aviation home page: pick the product from its menu." }));
-    setFooter("links", "SAWS (weathersa.co.za); nothing from those pages is shown here", "links checked " + C.LINKS_CHECKED);
+    r.appendChild(el("p", { class: "small muted", text: "SAWS radar images open on the SAWS aviation site: you need your own login there. They can't be shown on this page (SAWS only serves them to its own pages)." }));
+    setFooter("radar", "links only", "links checked " + C.LINKS_CHECKED);
   }
 
   // ---------------------------------------------------------------- render loop
