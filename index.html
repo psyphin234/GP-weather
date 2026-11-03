@@ -24,7 +24,7 @@
       <button type="button" id="refresh" class="btn small">Refresh</button>
     </div>
     <nav class="jump" aria-label="Panels">
-      <a href="#radar">Radar</a><a href="#storm">Storms</a><a href="#points">Areas</a><a href="#night">Tonight</a><a href="#astro">Sun &amp; moon</a>
+      <a href="#radar">Radar</a><a href="#storm">Storms</a><a href="#points">Areas &amp; tonight</a><a href="#astro">Sun &amp; moon</a>
     </nav>
   </header>
 
@@ -41,13 +41,8 @@
     </section>
 
     <section class="panel" id="points" aria-labelledby="points-h">
-      <h2 id="points-h">Areas</h2>
+      <h2 id="points-h">Areas <span class="h-note" id="night-window"></span></h2>
       <div id="points-body" class="cards"></div>
-    </section>
-
-    <section class="panel" id="night" aria-labelledby="night-h">
-      <h2 id="night-h">Tonight</h2>
-      <div id="night-body"></div>
     </section>
 
     <section class="panel" id="astro" aria-labelledby="astro-h">

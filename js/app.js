@@ -276,6 +276,8 @@
     var box = $("points-body");
     box.textContent = "";
     if (!cache) { box.appendChild(el("p", { class: lastError ? "warn" : "muted", text: noDataText() })); return; }
+    var ref = W.nightSummary(cache.data[0], now, C.NIGHT), nw = $("night-window");
+    if (nw) nw.textContent = ref ? "Tonight: sunset " + hmS(ref.window.start) + " → sunrise " + hmS(ref.window.end) : "";
     cache.data.forEach(function (loc, i) {
       var L = C.LOCATIONS[i], c = loc.current, n24 = W.next24(loc, now),
           night = W.nightSummary(loc, now, C.NIGHT), h = loc.hourly;
@@ -288,15 +290,16 @@
           ]),
           n24.thunder ? el("span", { class: "badge lv3", title: "Thunder in the next 24 h", text: "⚡ 24 h" }) : null
         ]),
-        // 3 x 2 grid; units sit in the labels so the values stay short
+        // now / next 24 h: 3 x 2 grid; units sit in the labels so the values stay short
         el("dl", { class: "stats tight" }, [
-          stat("Low tonight", deg(night && night.low), night ? [el("span", { class: "small muted", text: hmS(night.lowAt) })] : null),
           stat("Wind km/h", W.compass(c.wind_direction_10m) + " " + Math.round(c.wind_speed_10m), [arrow(c.wind_direction_10m)]),
           stat("Gust · 24h max", String(Math.round(c.wind_gusts_10m)), [el("span", { class: "small muted", text: "· " + Math.round(n24.gustMax || 0) })]),
           stat("Rain 24h", mm(n24.rain), [el("span", { class: "small muted", text: (n24.popMax || 0) + "%" })]),
           stat("Dew point", deg(c.dew_point_2m), [el("span", { class: "small muted", text: c.relative_humidity_2m + "%" })]),
-          stat("Cloud · vis", c.cloud_cover + "%", [el("span", { class: "small muted", text: km(c.visibility) })])
-        ])
+          stat("Cloud", c.cloud_cover + "%"),
+          stat("Visibility", km(c.visibility))
+        ]),
+        tonightStrip(night)
       ]);
 
       // hourly table, next 24 h
@@ -327,36 +330,23 @@
   }
 
   // ---------------------------------------------------------------- 3. night
-  function renderNight(now) {
-    var box = $("night-body");
-    box.textContent = "";
-    if (!cache) { box.appendChild(el("p", { class: lastError ? "warn" : "muted", text: noDataText() })); return; }
-    var sums = cache.data.map(function (loc) { return W.nightSummary(loc, now, C.NIGHT); });
-    var ref = sums.filter(Boolean)[0];
-    if (ref) {
-      box.appendChild(el("p", { class: "summary" }, [
-        el("strong", { text: "Sunset " + hmS(ref.window.start) + " → sunrise " + hmS(ref.window.end) })
-      ]));
-    }
-    var list = el("div", { class: "night-list" });
-    sums.forEach(function (s, i) {
-      if (!s) return;
-      var flags = s.flags.length ? s.flags.map(function (f) { return el("span", { class: "chip lv" + f.level, text: f.text }); })
-                                 : [el("span", { class: "chip lv0", text: "No flags" })];
-      list.appendChild(el("div", { class: "night-row lv" + s.level }, [
-        el("div", { class: "night-name" }, [el("strong", { text: C.LOCATIONS[i].short })].concat(flags)),
-        el("dl", { class: "night-nums" }, [
-          stat("Low", deg(s.low), [el("span", { class: "small muted", text: " " + hmS(s.lowAt) })]),
-          stat("Feels", deg(s.feelsMin)),
-          stat("Wind chill", s.windChill === null ? "–" : deg(s.windChill)),
-          stat("Rain", mm(s.rain), [el("span", { class: "small muted", text: " " + (s.popMax || 0) + "%" })]),
-          stat("Clear sky", s.clearHours + " of " + s.hours + " h"),
-          stat("Gusts", Math.round(s.gustMax || 0) + " km/h")
-        ])
-      ]));
-    });
-    box.appendChild(list);
+  // the "Tonight" strip at the bottom of each area card (was its own panel)
+  function tonightStrip(n) {
+    if (!n) return null;
+    return el("div", { class: "tonight lv" + n.level }, [
+      el("div", { class: "tonight-head" }, [el("strong", { text: "Tonight" })].concat(
+        n.flags.map(function (f) { return el("span", { class: "chip lv" + f.level, text: f.text }); }))),
+      el("dl", { class: "stats tight" }, [
+        stat("Low", deg(n.low), [el("span", { class: "small muted", text: hmS(n.lowAt) })]),
+        stat("Feels", deg(n.feelsMin)),
+        stat("Wind chill", n.windChill === null ? "–" : deg(n.windChill)),
+        stat("Rain", mm(n.rain), [el("span", { class: "small muted", text: (n.popMax || 0) + "%" })]),
+        stat("Gusts km/h", String(Math.round(n.gustMax || 0))),
+        stat("Clear sky", n.clearHours + "/" + n.hours + " h")
+      ])
+    ]);
   }
+
 
   // ---------------------------------------------------------------- 4. sun & moon
   function moonSvg(fraction, phase) {
@@ -531,7 +521,6 @@
       renderStatus();
       try { renderStorms(now); } catch (e) { $("storm-body").textContent = "Couldn't draw this panel: " + e.message; }
       try { renderPoints(now); } catch (e) { $("points-body").textContent = "Couldn't draw this panel: " + e.message; }
-      try { renderNight(now); } catch (e) { $("night-body").textContent = "Couldn't draw this panel: " + e.message; }
       renderAstro();
     });
   }

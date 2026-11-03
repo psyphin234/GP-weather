@@ -83,7 +83,8 @@ main { padding-top: 12px; padding-bottom: 12px; }
   margin-bottom: 14px;
 }
 .panel h2 { font-size: 1.15rem; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
-#radar-h { flex-wrap: wrap; align-items: baseline; gap: 2px 10px; }
+#radar-h, #points-h { flex-wrap: wrap; align-items: baseline; gap: 2px 10px; }
+.h-note { font-size: 0.8rem; font-weight: 600; color: var(--text-muted); }
 .utc-note { font-size: 0.8rem; font-weight: 600; color: var(--warn); }
 #utc-now { white-space: nowrap; }
 .panel h3 { font-size: 1rem; }
@@ -149,7 +150,7 @@ p { margin: 6px 0; }
 @media (min-width: 720px) { .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (min-width: 1060px) { .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .card {
-  background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px 2px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px 2px; overflow: hidden;
 }
 .now-row { display: flex; align-items: center; gap: 10px; }
 .big { font-size: 1.9rem; font-weight: 700; line-height: 1; flex: 0 0 auto; }
@@ -175,19 +176,17 @@ table th, table td { padding: 4px 6px; text-align: left; white-space: nowrap; bo
 table thead th { color: var(--text-muted); font-weight: 600; }
 table.hourly tr.ts td, table.hourly tr.ts th { color: #ffd0da; background: color-mix(in srgb, var(--lv3) 18%, transparent); }
 
-/* ---------------------------------------------------------------- 3. night */
-.night-list { display: grid; gap: 8px; }
-@media (min-width: 720px) { .night-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-.night-row {
-  background: var(--surface-2); border-radius: 10px; padding: 8px 10px;
-  border-left: 4px solid var(--lv0);
+/* ---------------------------------------------------------------- tonight strip (in each area card) */
+.tonight {
+  margin: 8px -10px 0; padding: 6px 10px 2px;
+  border-top: 1px solid var(--border); border-left: 4px solid var(--lv0);
+  background: rgba(4, 8, 23, 0.35);
 }
-.night-row.lv1 { border-left-color: var(--lv1); }
-.night-row.lv2 { border-left-color: var(--lv2); }
-.night-row.lv3 { border-left-color: var(--lv3); }
-.night-name { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.night-nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px 8px; margin: 6px 0 0; }
-.advice { padding-left: 1.1rem; color: var(--text-muted); }
+.tonight.lv1 { border-left-color: var(--lv1); }
+.tonight.lv2 { border-left-color: var(--lv2); }
+.tonight.lv3 { border-left-color: var(--lv3); }
+.tonight-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font-size: 0.85rem; }
+.tonight .stats.tight { margin-top: 4px; }
 
 /* ---------------------------------------------------------------- 4. astro */
 #astro-loc {
