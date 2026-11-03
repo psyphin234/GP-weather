@@ -207,6 +207,24 @@
   eq(late.hours, 2, "at 04:30 the rest of the night is the 04:00 and 05:00 hours");
   eq(late.rain, 0, "the evening's rain no longer counts at 04:30");
 
+  // tile colours on the area cards
+  eq(W.coldLevel(6, C.NIGHT), 0, "6 degC: no cold colour");
+  eq(W.coldLevel(5, C.NIGHT), 2, "5 degC: cold (orange)");
+  eq(W.coldLevel(0, C.NIGHT), 3, "0 degC: very cold (red)");
+  eq(W.coldLevel(null, C.NIGHT), 0, "no value: no colour");
+  var nl = W.nightLevels(ns, C.NIGHT);
+  eq([nl.low, nl.feels, nl.chill, nl.rain, nl.gust, nl.clear].join(","), "2,3,3,3,3,1",
+     "cold wet windy clear night: low orange, feels/chill red, rain + gust red (wet + wind), clear yellow");
+  var ml = W.nightLevels(mild, C.NIGHT);
+  eq([ml.low, ml.feels, ml.chill, ml.rain, ml.gust, ml.clear].join(","), "0,0,0,0,0,0", "mild night: no tile colours");
+  var dryWindy = W.nightLevels({ low: 10, feelsMin: 9, windChill: null, rain: 0, popMax: 10, gustMax: 35, cloudAvg: 60 }, C.NIGHT);
+  eq(dryWindy.gust + "," + dryWindy.rain, "1,0", "dry windy night: gust yellow only");
+  var cur = { wind_gusts_10m: 12, visibility: 800 };
+  var nw0 = W.nowLevels(cur, { rain: 0.2, popMax: 55, gustMax: 31 }, C.NIGHT, C.NOW);
+  eq(nw0.gust + "," + nw0.rain + "," + nw0.vis, "1,1,2", "now: 24 h gust 31 yellow, 55% rain yellow, 800 m visibility orange");
+  var nw1 = W.nowLevels({ wind_gusts_10m: 12, visibility: 20000 }, { rain: 0, popMax: 0, gustMax: 20 }, C.NIGHT, C.NOW);
+  eq(nw1.gust + "," + nw1.rain + "," + nw1.vis, "0,0,0", "now: calm, dry, clear: no colours");
+
   // next 24 h
   var rainy = fixture(function (h) { h.precipitation[at(0, 13)] = 2; h.precipitation[at(1, 12)] = 3; h.precipitation[at(1, 13)] = 4; h.weather_code[at(1, 11)] = 95; });
   var n = W.next24(rainy, T0 + 13.2 * 3600);

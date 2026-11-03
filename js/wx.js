@@ -168,7 +168,37 @@
     };
   }
 
+  /* Warning colour (0 none, 1 yellow, 2 orange, 3 red) for each tile on an
+     area card, from the same thresholds as the night flags. */
+  function coldLevel(t, cfg) {
+    if (t === null || t === undefined) return 0;
+    return t <= cfg.veryCold ? 3 : t <= cfg.cold ? 2 : 0;
+  }
+  function nowLevels(cur, n24, night, now) {
+    var gust = Math.max(cur.wind_gusts_10m || 0, n24.gustMax || 0);
+    return {
+      gust: gust >= night.windyGust ? 1 : 0,
+      rain: (n24.rain >= night.wetMm || (n24.popMax || 0) >= night.wetPop) ? 1 : 0,
+      vis: cur.visibility !== null && cur.visibility !== undefined && cur.visibility < now.lowVisKm * 1000 ? 2 : 0
+    };
+  }
+  function nightLevels(n, cfg) {
+    var wet = n.rain >= cfg.wetMm || (n.popMax || 0) >= cfg.wetPop,
+        windy = (n.gustMax || 0) >= cfg.windyGust;
+    return {
+      low: coldLevel(n.low, cfg),
+      feels: coldLevel(n.feelsMin, cfg),
+      chill: coldLevel(n.windChill, cfg),
+      rain: wet ? (windy ? 3 : 2) : 0,
+      gust: windy ? (wet ? 3 : 1) : 0,
+      clear: n.cloudAvg < cfg.clearCloud ? 1 : 0
+    };
+  }
+
   window.SARWX_WX = {
+    coldLevel: coldLevel,
+    nowLevels: nowLevels,
+    nightLevels: nightLevels,
     wmoText: wmoText,
     isThunder: isThunder,
     compass: compass,

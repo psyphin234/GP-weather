@@ -46,6 +46,12 @@
     clearCloud: 25    // average cloud cover below this (%): "Clear sky"
   };
 
+  // ---- area cards: tile colours ----------------------------------------------
+  // Gust, rain and cold tiles use the NIGHT thresholds above. Visibility:
+  var NOW = {
+    lowVisKm: 1       // visibility now below this (km): orange tile
+  };
+
   // ---- SAWS images via FlyWatch ----------------------------------------------------
   // SAWS charts as re-published without a login by FlyWatch (Africa Flight Group);
   // its page lists them at /api/weather/images/<group> with source "WeatherSA".
@@ -74,6 +80,7 @@
     MIN_MANUAL_MIN: MIN_MANUAL_MIN,
     STORM: STORM,
     NIGHT: NIGHT,
+    NOW: NOW,
     IMAGES: IMAGES,
     RADAR_SOURCE_PAGE: RADAR_SOURCE_PAGE,
     RADAR_STALE_MIN: RADAR_STALE_MIN,

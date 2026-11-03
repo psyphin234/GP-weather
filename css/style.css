@@ -156,19 +156,37 @@ p { margin: 6px 0; }
 .card {
   background: var(--surface-2); border: 1px solid var(--border); border-radius: 10px; padding: 8px 10px 2px; overflow: hidden;
 }
-.now-row { display: flex; align-items: center; gap: 10px; }
+.now-row { display: flex; align-items: center; gap: 8px; }
+.wx-ic { flex: 0 0 auto; display: flex; }
+.wx-ic svg { display: block; }
 .big { font-size: 1.9rem; font-weight: 700; line-height: 1; flex: 0 0 auto; }
 .now-wx { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; }
 .now-wx h3 { font-size: 0.98rem; line-height: 1.2; }
 .now-row .badge { flex: 0 0 auto; }
-.stats { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 10px; margin: 8px 0; }
-.stat dt { font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.03em; }
-.stat dd { margin: 0; font-weight: 600; display: flex; align-items: center; flex-wrap: wrap; gap: 0 4px; }
-.stat dd .small { font-weight: 400; }
-.stats.tight { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px 8px; margin: 6px 0 0; }
-.stats.tight .stat dt { font-size: 0.64rem; letter-spacing: 0.02em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.stats.tight .stat dd { font-size: 0.95rem; gap: 0 3px; line-height: 1.3; }
-.stats.tight .stat dd .small { font-size: 0.75rem; }
+
+/* icon tiles: 3 x 2 on every card (now / 24 h, and tonight) */
+.tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; margin: 8px 0 0; }
+.tile {
+  min-width: 0; overflow: hidden; padding: 5px 6px 4px; border-radius: 8px;
+  background: rgba(4, 8, 23, 0.5); border: 1px solid var(--border);
+}
+.tile .tv {
+  display: flex; align-items: center; gap: 0 3px; white-space: nowrap;
+  font-size: 1.15rem; font-weight: 700; line-height: 1.2; font-variant-numeric: tabular-nums;
+}
+.tile .tv small { font-size: 0.68rem; font-weight: 500; color: var(--text-muted); align-self: flex-end; padding-bottom: 2px; }
+.tile .ic { display: flex; flex: 0 0 auto; color: var(--accent); margin-right: 2px; }
+.tile .ic svg { display: block; }
+.tile .tc {
+  font-size: 0.7rem; color: var(--text-muted); line-height: 1.25;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tile.lv1 { border-color: var(--lv1); background: color-mix(in srgb, var(--lv1) 12%, rgba(4, 8, 23, 0.5)); }
+.tile.lv2 { border-color: var(--lv2); background: color-mix(in srgb, var(--lv2) 14%, rgba(4, 8, 23, 0.5)); }
+.tile.lv3 { border-color: var(--lv3); background: color-mix(in srgb, var(--lv3) 18%, rgba(4, 8, 23, 0.5)); }
+.tile.lv1 .ic { color: var(--lv1); }
+.tile.lv2 .ic { color: var(--lv2); }
+.tile.lv3 .ic { color: #ff6f8b; }
 .card details summary { padding: 4px 0; font-size: 0.8rem; }
 .arrow { display: inline-flex; color: var(--accent); }
 .arrow svg { display: block; }
@@ -182,7 +200,7 @@ table.hourly tr.ts td, table.hourly tr.ts th { color: #ffd0da; background: color
 
 /* ---------------------------------------------------------------- tonight strip (in each area card) */
 .tonight {
-  margin: 8px -10px 0; padding: 6px 10px 2px;
+  margin: 8px -10px 0; padding: 6px 10px 8px;
   border-top: 1px solid var(--border); border-left: 4px solid var(--lv0);
   background: rgba(4, 8, 23, 0.35);
 }
@@ -190,7 +208,7 @@ table.hourly tr.ts td, table.hourly tr.ts th { color: #ffd0da; background: color
 .tonight.lv2 { border-left-color: var(--lv2); }
 .tonight.lv3 { border-left-color: var(--lv3); }
 .tonight-head { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; font-size: 0.85rem; }
-.tonight .stats.tight { margin-top: 4px; }
+.tonight .tiles { margin-top: 5px; }
 
 /* ---------------------------------------------------------------- 4. astro */
 #astro-loc {

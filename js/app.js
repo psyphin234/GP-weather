@@ -274,9 +274,60 @@
     ]));
   }
 
-  // ---------------------------------------------------------------- 2. point forecasts
-  function stat(label, value, extra) {
-    return el("div", { class: "stat" }, [el("dt", { text: label }), el("dd", null, [value].concat(extra || []))]);
+  // ---------------------------------------------------------------- 2. area cards
+  // Line icons (24x24, stroke = currentColor), our own strings only.
+  var ICON = {
+    gust: '<path d="M9.6 4.6A2 2 0 1 1 11 8H2m10.6 11.4A2 2 0 1 0 14 16H2m15.7-8.3A2.5 2.5 0 1 1 19.5 12H2"/>',
+    rain: '<path d="M22 12a10 10 0 0 0-20 0z"/><path d="M12 12v7a2.5 2.5 0 0 1-5 0"/>',
+    dew: '<path d="M12 2.7l5.7 5.7a8 8 0 1 1-11.4 0z"/>',
+    cloud: '<path d="M18 10h-1.3A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/>',
+    vis: '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
+    low: '<path d="M14 14.8V3.5a2.5 2.5 0 0 0-5 0v11.3a4.5 4.5 0 1 0 5 0z"/><path d="M19 5v8m-3-3l3 3 3-3"/>',
+    feels: '<circle cx="12" cy="6" r="3"/><path d="M6 22v-6a6 6 0 0 1 12 0v6"/>',
+    chill: '<path d="M12 2v20M3.3 7l17.4 10M3.3 17l17.4-10M9 4l3 2 3-2M9 20l3-2 3 2"/>',
+    clear: '<path d="M12 3l2.1 4.3 4.7.7-3.4 3.3.8 4.7-4.2-2.2-4.2 2.2.8-4.7L5.2 8l4.7-.7z"/><path d="M19 17l.8 1.7 1.7.3-1.3 1.2.3 1.8-1.5-.8-1.5.8.3-1.8-1.3-1.2 1.7-.3z"/>'
+  };
+  function icon(name) {
+    return el("span", { class: "ic", "aria-hidden": "true",
+      html: '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + ICON[name] + "</svg>" });
+  }
+  function windArrow(dir) {
+    // wind is FROM dir; the arrow points where it blows TO
+    return el("span", { class: "ic", "aria-hidden": "true",
+      html: '<svg viewBox="0 0 20 20" width="18" height="18" style="transform:rotate(' + ((dir + 180) % 360) + 'deg)"><path d="M10 2 L15 12 L10 9.5 L5 12 Z" fill="currentColor"/><rect x="9" y="9" width="2" height="9" fill="currentColor"/></svg>' });
+  }
+
+  // weather picture for the WMO code; sun or moon by day / night
+  function wxIcon(code, isDay) {
+    var sun = '<circle cx="12" cy="12" r="4.5" fill="#ffd34d" stroke="none"/><path stroke="#ffd34d" d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/>',
+        moon = '<path fill="#f4f1d6" stroke="none" d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/>',
+        cloud = function (dy) { return '<path transform="translate(0 ' + dy + ')" fill="#3a4a7a" stroke="#c9d6f0" d="M17.5 11h-1.1A6.5 6.5 0 1 0 8.5 19h9a4 4 0 0 0 0-8z"/>'; },
+        corner = function (s) { return '<g transform="translate(-3 -3) scale(0.75)">' + s + "</g>"; },
+        sky = isDay ? sun : moon, body;
+    if (code <= 1) body = sky;
+    else if (code === 2) body = corner(sky) + cloud(3);
+    else if (code === 45 || code === 48) body = '<path stroke="#c9d6f0" d="M3 8h18M5 12h14M3 16h18M6 20h12"/>';
+    else if (code >= 95) body = cloud(-4) + '<path fill="#ffc857" stroke="none" d="M13 14l-4 5h3l-1 4 5-6h-3l1-3z"/>';
+    else if ((code >= 71 && code <= 77) || code === 85 || code === 86) body = cloud(-4) + '<path stroke="#eaf2ff" stroke-width="2.4" d="M8 19v.1M12 21v.1M16 19v.1"/>';
+    else if (code >= 51) body = cloud(-4) + '<path stroke="#4cc9ff" d="M8 18l-1 3M12 18l-1 3M16 18l-1 3"/>';
+    else body = cloud(0);
+    return el("span", { class: "wx-ic", "aria-hidden": "true",
+      html: '<svg viewBox="0 0 24 24" width="40" height="40" fill="none" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">' + body + "</svg>" });
+  }
+
+  // one tile: icon + big value (+ small unit), short caption under it; the
+  // level (1-3) colours its icon and edge like the risk chips
+  function tile(ic, value, unit, caption, level, title) {
+    return el("div", { class: "tile" + (level ? " lv" + level : ""), title: title || null }, [
+      el("div", { class: "tv" }, [ic, el("span", { text: value }), unit ? el("small", { text: unit }) : null]),
+      el("div", { class: "tc", text: caption })
+    ]);
+  }
+  function mmNum(v) { return v === null || v === undefined ? "–" : v < 0.05 ? "0" : v < 10 ? v.toFixed(1) : String(Math.round(v)); }
+  function kmNum(m) {
+    if (m === null || m === undefined) return "–";
+    var k = m / 1000;
+    return k >= 20 ? "20+" : k < 1 ? k.toFixed(1) : String(Math.round(k));
   }
 
   function renderPoints(now) {
@@ -287,9 +338,11 @@
     if (nw) nw.textContent = ref ? "Tonight: sunset " + hmS(ref.window.start) + " → sunrise " + hmS(ref.window.end) : "";
     cache.data.forEach(function (loc, i) {
       var L = C.LOCATIONS[i], c = loc.current, n24 = W.next24(loc, now),
-          night = W.nightSummary(loc, now, C.NIGHT), h = loc.hourly;
+          night = W.nightSummary(loc, now, C.NIGHT), h = loc.hourly,
+          lv = W.nowLevels(c, n24, C.NIGHT, C.NOW), dir = W.compass(c.wind_direction_10m);
       var card = el("article", { class: "card", id: "area-" + L.id }, [
         el("div", { class: "now-row" }, [
+          wxIcon(c.weather_code, c.is_day !== 0),
           el("span", { class: "big", text: deg(c.temperature_2m) }),
           el("span", { class: "now-wx" }, [
             el("h3", { text: L.name }),
@@ -297,14 +350,13 @@
           ]),
           n24.thunder ? el("span", { class: "badge lv3", title: "Thunder in the next 24 h", text: "⚡ 24 h" }) : null
         ]),
-        // now / next 24 h: 3 x 2 grid; units sit in the labels so the values stay short
-        el("dl", { class: "stats tight" }, [
-          stat("Wind km/h", W.compass(c.wind_direction_10m) + " " + Math.round(c.wind_speed_10m), [arrow(c.wind_direction_10m)]),
-          stat("Gust · 24h max", String(Math.round(c.wind_gusts_10m)), [el("span", { class: "small muted", text: "· " + Math.round(n24.gustMax || 0) })]),
-          stat("Rain 24h", mm(n24.rain), [el("span", { class: "small muted", text: (n24.popMax || 0) + "%" })]),
-          stat("Dew point", deg(c.dew_point_2m), [el("span", { class: "small muted", text: c.relative_humidity_2m + "%" })]),
-          stat("Cloud", c.cloud_cover + "%"),
-          stat("Visibility", km(c.visibility))
+        el("div", { class: "tiles" }, [
+          tile(windArrow(c.wind_direction_10m), String(Math.round(c.wind_speed_10m)), "km/h", "Wind " + dir, 0, "Wind now, from " + dir),
+          tile(icon("gust"), String(Math.round(c.wind_gusts_10m)), "km/h", "Gust · max " + Math.round(n24.gustMax || 0), lv.gust, "Gust now · strongest in the next 24 h"),
+          tile(icon("rain"), mmNum(n24.rain), "mm", "24h · " + (n24.popMax || 0) + "%", lv.rain, "Rain in the next 24 h · highest chance"),
+          tile(icon("dew"), deg(c.dew_point_2m), "", "Dew · RH " + c.relative_humidity_2m + "%", 0, "Dew point · relative humidity"),
+          tile(icon("cloud"), String(c.cloud_cover), "%", "Cloud", 0, "Cloud cover now"),
+          tile(icon("vis"), kmNum(c.visibility), "km", "Visibility", lv.vis, "Visibility now")
         ]),
         tonightStrip(night)
       ]);
@@ -337,19 +389,20 @@
   }
 
   // ---------------------------------------------------------------- 3. night
-  // the "Tonight" strip at the bottom of each area card (was its own panel)
+  // the "Tonight" part of each area card: flag chips, then the same kind of tiles
   function tonightStrip(n) {
     if (!n) return null;
+    var lv = W.nightLevels(n, C.NIGHT);
     return el("div", { class: "tonight lv" + n.level }, [
       el("div", { class: "tonight-head" }, [el("strong", { text: "Tonight" })].concat(
         n.flags.map(function (f) { return el("span", { class: "chip lv" + f.level, text: f.text }); }))),
-      el("dl", { class: "stats tight" }, [
-        stat("Low", deg(n.low), [el("span", { class: "small muted", text: hmS(n.lowAt) })]),
-        stat("Feels", deg(n.feelsMin)),
-        stat("Wind chill", n.windChill === null ? "–" : deg(n.windChill)),
-        stat("Rain", mm(n.rain), [el("span", { class: "small muted", text: (n.popMax || 0) + "%" })]),
-        stat("Gusts km/h", String(Math.round(n.gustMax || 0))),
-        stat("Clear sky", n.clearHours + "/" + n.hours + " h")
+      el("div", { class: "tiles" }, [
+        tile(icon("low"), deg(n.low), "", "Low · " + hmS(n.lowAt), lv.low, "Lowest temperature tonight · when"),
+        tile(icon("feels"), deg(n.feelsMin), "", "Feels like", lv.feels, "Lowest feels-like tonight"),
+        tile(icon("chill"), n.windChill === null ? "–" : deg(n.windChill), "", "Wind chill", lv.chill, "Lowest wind chill tonight (only below 10° with wind)"),
+        tile(icon("rain"), mmNum(n.rain), "mm", "Rain · " + (n.popMax || 0) + "%", lv.rain, "Rain tonight · highest chance"),
+        tile(icon("gust"), String(Math.round(n.gustMax || 0)), "km/h", "Gusts max", lv.gust, "Strongest gust tonight"),
+        tile(icon("clear"), n.clearHours + "/" + n.hours, "", "Clear hours", lv.clear, "Clear hours tonight (fast cooling)")
       ])
     ]);
   }
