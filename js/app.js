@@ -221,7 +221,7 @@
       el("span", null, [el("i", { class: "sg-c lv3" }), " Thunderstorm in the forecast (WMO 95–99)"]),
       el("span", null, [el("i", { class: "sg-c lv0 now" }), " This hour"])
     ]));
-    setFooter("storm", link("Open-Meteo", "https://open-meteo.com/"), stamp(cache.fetchedAt));
+    setFooter("storm", el("span", null, [link("Open-Meteo", "https://open-meteo.com/"), " (grid); SAWS via FlyWatch (chart)"]), stamp(cache.fetchedAt));
   }
 
   // ---------------------------------------------------------------- 2. point forecasts
@@ -390,45 +390,113 @@
     setFooter("astro", "calculated on this device (Meeus formulas; sun ±2 min, moon ±10 min): no download", hm(nowD) + " (" + fmtDayLong.format(nowD) + ")");
   }
 
-  // ---------------------------------------------------------------- 5. radar
-  // SAWS Irene radar images as re-published by FlyWatch: plain <img>s, reloaded
-  // at most every REFRESH_MIN minutes and only while the tab is visible.
-  var radarImgs = [], radarLoadedAt = 0;
+  // ---------------------------------------------------------------- SAWS images (via FlyWatch)
+  // Plain <img>s, reloaded at most every REFRESH_MIN minutes and only while the
+  // tab is visible. Tapping one opens the full-screen viewer.
+  var shownImgs = [], imagesLoadedAt = 0;
 
-  function renderRadar() {
-    var r = $("radar-body");
-    r.textContent = "";
-    var grid = el("div", { class: "radar-grid" });
-    radarImgs = C.RADAR_IMAGES.map(function (x) {
-      var img = el("img", { alt: x.title + " (SAWS weather radar image)", width: "750", height: "691", decoding: "async" });
-      var msg = el("p", { class: "small warn", hidden: true }, ["Couldn't load this image. ", link("Open the FlyWatch radar page", C.RADAR_SOURCE_PAGE)]);
-      img.addEventListener("error", function () { msg.hidden = false; img.hidden = true; });
-      img.addEventListener("load", function () { msg.hidden = true; img.hidden = false; });
-      grid.appendChild(el("figure", { class: "radar" }, [
-        el("figcaption", null, [el("strong", { text: x.title }), " ", link("full size", x.url, "small")]),
-        img, msg
-      ]));
-      return { img: img, url: x.url };
+  function figure(x) {
+    var img = el("img", { alt: x.title + " (SAWS chart)", width: String(x.w), height: String(x.h), decoding: "async" });
+    var msg = el("p", { class: "small warn", hidden: true }, ["Couldn't load this image. ", link("Open the FlyWatch page", C.RADAR_SOURCE_PAGE)]);
+    var btn = el("button", { type: "button", class: "img-open", "aria-label": "Show " + x.title + " full screen" },
+                 [img, el("span", { class: "img-hint", "aria-hidden": "true", text: "\u2922 full screen" })]);
+    img.addEventListener("error", function () { msg.hidden = false; btn.hidden = true; });
+    img.addEventListener("load", function () { msg.hidden = true; btn.hidden = false; });
+    btn.addEventListener("click", function () { openViewer(img.currentSrc || img.src, x.title); });
+    shownImgs.push({ img: img, url: x.url });
+    return el("figure", { class: "chart" }, [
+      el("figcaption", null, [el("strong", { text: x.title })]),
+      btn, msg,
+      x.note ? el("p", { class: "small muted", text: x.note }) : null
+    ]);
+  }
+
+  function renderImages() {
+    shownImgs = [];
+    var stormBox = $("storm-images"), radarBox = $("radar-body");
+    stormBox.textContent = ""; radarBox.textContent = "";
+    var grid = el("div", { class: "chart-grid" });
+    C.IMAGES.forEach(function (x) {
+      if (x.panel === "storm") stormBox.appendChild(figure(x));
+      else grid.appendChild(figure(x));
     });
-    r.appendChild(grid);
-    r.appendChild(el("p", { class: "small muted", text: "The radar's own time is printed on each image: check it, as the image can be older than the reload time below. Pinch or tap “full size” to zoom." }));
+    stormBox.appendChild(el("p", { class: "small muted", id: "storm-img-meta" }));
+    radarBox.appendChild(grid);
+    radarBox.appendChild(el("p", { class: "small muted", text: "Each image has its own time printed on it: check it, as the image can be older than the reload time. Tap an image for full screen." }));
     var rl = el("div", { class: "btns" });
     C.RADAR_LINKS.forEach(function (x) { rl.appendChild(link(x.label, x.url, "btn")); });
-    r.appendChild(rl);
+    radarBox.appendChild(rl);
   }
 
-  function radarFooter() {
-    setFooter("radar", el("span", null, ["SAWS (Irene radar) via ", link("FlyWatch", C.RADAR_SOURCE_PAGE)]),
-              radarLoadedAt ? "images reloaded " + stamp(radarLoadedAt) : "not loaded yet");
+  function imageFooters() {
+    var when = imagesLoadedAt ? "reloaded " + stamp(imagesLoadedAt) : "not loaded yet";
+    var m = $("storm-img-meta");
+    if (m) { m.textContent = ""; m.appendChild(el("span", null, ["Chart: SAWS via ", link("FlyWatch", C.RADAR_SOURCE_PAGE), ", " + when])); }
+    setFooter("radar", el("span", null, ["SAWS (Irene radar) via ", link("FlyWatch", C.RADAR_SOURCE_PAGE)]), "images " + when);
   }
 
-  function loadRadar(minGap) {
-    if (document.visibilityState !== "visible" || !radarImgs.length) return;
-    if (minutesSince(radarLoadedAt) < minGap) return;
-    radarLoadedAt = Date.now();
-    var t = Math.floor(radarLoadedAt / 60000); // new URL each reload, so the browser fetches it again
-    radarImgs.forEach(function (x) { x.img.src = x.url + "?t=" + t; });
-    radarFooter();
+  function loadImages(minGap) {
+    if (document.visibilityState !== "visible" || !shownImgs.length) return;
+    if (minutesSince(imagesLoadedAt) < minGap) return;
+    imagesLoadedAt = Date.now();
+    var t = Math.floor(imagesLoadedAt / 60000); // new URL each reload, so the browser fetches it again
+    shownImgs.forEach(function (x) { x.img.src = x.url + "?t=" + t; });
+    imageFooters();
+  }
+
+  // ---------------------------------------------------------------- full-screen viewer
+  // A fixed overlay rather than the Fullscreen API (iPhones don't allow that for
+  // images). Tap the picture to switch between fit-to-screen and 2x zoom; close
+  // with the X, Esc, or the phone's Back button (the viewer adds a history entry).
+  var viewer = null, viewerImg = null, viewerTitle = null, viewerStage = null, viewerOpen = false;
+
+  function buildViewer() {
+    viewerImg = el("img", { alt: "" });
+    viewerTitle = el("span", { class: "viewer-title" });
+    var close = el("button", { type: "button", class: "viewer-close", "aria-label": "Close full screen", text: "\u2715" });
+    viewerStage = el("div", { class: "viewer-stage" }, [viewerImg]);
+    viewer = el("div", { class: "viewer", role: "dialog", "aria-modal": "true", "aria-label": "Image, full screen", hidden: true }, [
+      el("div", { class: "viewer-bar" }, [viewerTitle, el("span", { class: "viewer-tip", text: "tap image to zoom" }), close]),
+      viewerStage
+    ]);
+    document.body.appendChild(viewer);
+    close.addEventListener("click", function () { closeViewer(true); });
+    viewerImg.addEventListener("click", function (ev) {
+      var r = viewerImg.getBoundingClientRect(),
+          fx = (ev.clientX - r.left) / r.width, fy = (ev.clientY - r.top) / r.height;
+      var zoomed = viewer.classList.toggle("zoomed");
+      if (zoomed) {
+        // keep the tapped spot roughly in the middle of the screen
+        requestAnimationFrame(function () {
+          viewerStage.scrollLeft = fx * viewerStage.scrollWidth - viewerStage.clientWidth / 2;
+          viewerStage.scrollTop = fy * viewerStage.scrollHeight - viewerStage.clientHeight / 2;
+        });
+      }
+    });
+    viewerStage.addEventListener("click", function (ev) { if (ev.target === viewerStage) closeViewer(true); });
+    document.addEventListener("keydown", function (ev) { if (viewerOpen && ev.key === "Escape") closeViewer(true); });
+    window.addEventListener("popstate", function () { if (viewerOpen) closeViewer(false); });
+  }
+
+  function openViewer(src, title) {
+    if (!viewer) buildViewer();
+    viewerImg.src = src;
+    viewerImg.alt = title;
+    viewerTitle.textContent = title;
+    viewer.classList.remove("zoomed");
+    viewer.hidden = false;
+    viewerOpen = true;
+    document.documentElement.classList.add("viewer-on");
+    history.pushState({ sarwxViewer: 1 }, "");
+    viewer.querySelector(".viewer-close").focus();
+  }
+
+  function closeViewer(fromUi) {
+    if (!viewerOpen) return;
+    viewerOpen = false;
+    viewer.hidden = true;
+    document.documentElement.classList.remove("viewer-on");
+    if (fromUi && history.state && history.state.sarwxViewer) history.back();
   }
 
   // ---------------------------------------------------------------- render loop
@@ -454,12 +522,12 @@
 
   function tick() {
     maybeFetch(false);
-    loadRadar(C.REFRESH_MIN);
+    loadImages(C.REFRESH_MIN);
     if (Math.floor(Date.now() / 3600000) !== lastHour) renderAll();
     else { renderStatus(); refreshAges(); }
   }
   function refreshAges() {
-    if (radarLoadedAt) radarFooter();
+    if (imagesLoadedAt) imageFooters();
     if (!cache) return;
     ["storm", "points", "night"].forEach(function (p) {
       var u = document.querySelector("#" + p + "-meta .upd");
@@ -471,16 +539,16 @@
     var sel = $("astro-loc");
     C.LOCATIONS.forEach(function (l) { sel.appendChild(el("option", { value: l.id, text: l.name, selected: l.id === C.ASTRO_DEFAULT })); });
     sel.addEventListener("change", renderAstro);
-    $("refresh").addEventListener("click", function () { maybeFetch(true); loadRadar(C.MIN_MANUAL_MIN); });
+    $("refresh").addEventListener("click", function () { maybeFetch(true); loadImages(C.MIN_MANUAL_MIN); });
     document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") tick(); });
     // another tab of this page fetched: use its data instead of fetching again
     window.addEventListener("storage", function (ev) {
       if (ev.key === CACHE_KEY) { var c = readCache(); if (c) { cache = c; renderAll(); } }
     });
-    renderRadar();
+    renderImages();
     renderAll();
     maybeFetch(false);
-    loadRadar(0);
+    loadImages(0);
     setInterval(tick, 60000);
   }
 

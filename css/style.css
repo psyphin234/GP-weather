@@ -190,12 +190,47 @@ table.astro td { font-variant-numeric: tabular-nums; font-weight: 600; }
 .moon { display: flex; align-items: center; gap: 10px; }
 .moon-icon svg { display: block; }
 
-/* ---------------------------------------------------------------- 5. radar */
-.radar-grid { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); }
-@media (min-width: 720px) { .radar-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-figure.radar { margin: 0; }
-figure.radar figcaption { margin-bottom: 4px; }
-figure.radar img { display: block; width: 100%; height: auto; border-radius: 8px; background: #000; }
+/* ---------------------------------------------------------------- SAWS images */
+.chart-grid { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 720px) { .chart-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+figure.chart { margin: 12px 0 0; }
+figure.chart figcaption { margin-bottom: 4px; }
+.img-open {
+  position: relative; display: block; width: 100%; padding: 0; border: 0; margin: 0;
+  background: #000; border-radius: 8px; overflow: hidden; cursor: zoom-in;
+}
+.img-open img { display: block; width: 100%; height: auto; }
+.img-hint {
+  position: absolute; right: 6px; bottom: 6px; padding: 3px 8px; border-radius: 999px;
+  background: rgba(4, 8, 23, 0.85); color: var(--text); font-size: 0.75rem;
+}
+
+/* full-screen viewer */
+html.viewer-on, html.viewer-on body { overflow: hidden; }
+.viewer {
+  position: fixed; inset: 0; z-index: 100; background: #000;
+  display: flex; flex-direction: column;
+}
+.viewer[hidden] { display: none !important; }
+.viewer-bar {
+  display: flex; align-items: center; gap: 10px; padding: 8px 8px 8px 12px;
+  padding-top: max(8px, env(safe-area-inset-top));
+  background: rgba(4, 8, 23, 0.95); color: var(--text); font-size: 0.85rem;
+}
+.viewer-title { font-weight: 600; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.viewer-tip { color: var(--text-muted); font-size: 0.75rem; white-space: nowrap; }
+.viewer-close {
+  flex: 0 0 auto; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--border);
+  background: var(--surface-2); color: var(--text); font-size: 1.2rem; cursor: pointer;
+}
+.viewer-stage {
+  flex: 1 1 auto; min-height: 0; overflow: auto;
+  display: flex; align-items: center; justify-content: center;
+  -webkit-overflow-scrolling: touch;
+}
+.viewer-stage img { max-width: 100%; max-height: 100%; object-fit: contain; cursor: zoom-in; }
+.viewer.zoomed .viewer-stage { display: block; }
+.viewer.zoomed .viewer-stage img { max-width: none; max-height: none; width: 200%; min-width: 1200px; cursor: zoom-out; }
 
 /* ---------------------------------------------------------------- links */
 .stations { list-style: none; padding: 0; margin: 8px 0; display: grid; gap: 6px; }

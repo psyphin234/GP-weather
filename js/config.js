@@ -47,15 +47,20 @@
     clearCloud: 25    // average cloud cover below this (%): "Clear sky"
   };
 
-  // ---- radar images -------------------------------------------------------------
-  // SAWS Irene radar, as re-published without a login by FlyWatch (Africa Flight
-  // Group), which lists them in /api/weather/images/Radar with source "WeatherSA".
+  // ---- SAWS images via FlyWatch ----------------------------------------------------
+  // SAWS charts as re-published without a login by FlyWatch (Africa Flight Group);
+  // its page lists them at /api/weather/images/<group> with source "WeatherSA".
   // Shown as plain <img>s, reloaded at most every REFRESH_MIN minutes while the tab
-  // is visible. (SAWS's own aviation site can't be embedded: login + SameSite=Strict
-  // session cookie, checked 2026-11-03.)
-  var RADAR_IMAGES = [
-    { title: "Irene radar, 50 km",  url: "https://www.flywatch.com/api/weather/images/individual/IRS50.gif" },
-    { title: "Irene radar, 300 km", url: "https://www.flywatch.com/api/weather/images/individual/IRS.gif" }
+  // is visible; tap one to see it full screen. (SAWS's own aviation site can't be
+  // embedded: login + SameSite=Strict session cookie, checked 2026-11-03.)
+  //   panel  which panel it goes in: "storm" or "radar"
+  //   w, h   the image's size in pixels (reserves the space while it loads)
+  var FW = "https://www.flywatch.com/api/weather/images/individual/";
+  var IMAGES = [
+    { panel: "storm", title: "SAWS thunderstorm probability, today", url: FW + "tsprob_d1.gif", w: 800, h: 600,
+      note: "Whole of SA. The legend at the bottom says which hours the shading and red lines show; “Z” times are UTC (SAST = UTC + 2)." },
+    { panel: "radar", title: "Irene radar, 50 km",  url: FW + "IRS50.gif", w: 750, h: 691 },
+    { panel: "radar", title: "Irene radar, 300 km", url: FW + "IRS.gif",   w: 750, h: 691 }
   ];
   var RADAR_SOURCE_PAGE = "https://www.flywatch.com/tracking/weather/radar";
 
@@ -76,7 +81,7 @@
     MIN_MANUAL_MIN: MIN_MANUAL_MIN,
     STORM: STORM,
     NIGHT: NIGHT,
-    RADAR_IMAGES: RADAR_IMAGES,
+    IMAGES: IMAGES,
     RADAR_SOURCE_PAGE: RADAR_SOURCE_PAGE,
     RADAR_LINKS: RADAR_LINKS,
     LINKS_CHECKED: LINKS_CHECKED,
