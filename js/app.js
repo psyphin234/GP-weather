@@ -420,8 +420,15 @@
   // or serves a half-written file); after that, the next scheduled reload tries again.
   var IMG_RETRY_S = [20, 60, 180];
 
+  // Last good copies, kept by the service worker (sw.js; same cache name there).
+  // Without it (first visit, file://, old browser) the page just works as before.
+  var SAVED_CACHE = "sarwx-img-saved-v1";
+  function sw() { return navigator.serviceWorker && navigator.serviceWorker.controller; }
+
   function figure(x) {
-    var slot = { url: x.url, title: x.title, img: null, tries: 0, timer: null };
+    var file = x.url.split("/").pop();
+    var slot = { url: x.url, title: x.title, daily: !!x.daily, img: null, savedAt: null, tries: 0, timer: null,
+                 savedUrl: new URL("saved-image/" + file, location.href).href };
     slot.msg = el("p", { class: "small warn", hidden: true });
     slot.btn = el("button", { type: "button", class: "img-open", hidden: true, "aria-label": "Show " + x.title + " full screen" },
                   [el("span", { class: "img-hint", "aria-hidden": "true", text: "\u2922" })]);
@@ -443,28 +450,65 @@
     slot.msg.hidden = false;
   }
 
+  function failText(slot, wait) {
+    var again = wait ? "; trying again in " + (wait < 60 ? wait + " s" : wait / 60 + " min") + "." : ".";
+    if (slot.savedAt) {
+      var at = new Date(slot.savedAt), today = fmtDay.format(at) === fmtDay.format(new Date());
+      return "Not loading. Saved copy from " + (today ? "" : fmtDay.format(at) + " ") + fmtHM.format(at) +
+             (slot.daily && !today ? " (not today's chart)" : "") + again;
+    }
+    return (slot.img ? "Couldn't refresh, showing the previous image" : "Image not loading") + again;
+  }
+
+  function show(slot, img) {
+    if (slot.img) slot.img.replaceWith(img);
+    else slot.btn.insertBefore(img, slot.btn.firstChild);
+    slot.img = img;
+    slot.placeholder.hidden = true;
+    slot.btn.hidden = false;
+  }
+
+  function newImg(slot) {
+    return el("img", { alt: slot.title + " (SAWS chart)", width: String(slot.w), height: String(slot.h), decoding: "async" });
+  }
+
+  /* Nothing on screen and FlyWatch failed: show the service worker's saved copy,
+     if there is one, then call done(). */
+  function showSaved(slot, done) {
+    if (!sw() || !window.caches) { done(); return; }
+    caches.open(SAVED_CACHE).then(function (c) { return c.match(slot.savedUrl + ".json"); })
+      .then(function (r) { return r ? r.json() : null; })
+      .then(function (meta) {
+        if (!meta || !meta.at) { done(); return; }
+        var img = newImg(slot);
+        img.addEventListener("load", function () {
+          if (!slot.img) { show(slot, img); slot.savedAt = meta.at; }
+          done();
+        });
+        img.addEventListener("error", function () { done(); });
+        img.src = slot.savedUrl;
+      })
+      .catch(function () { done(); });
+  }
+
   /* Load one image off-screen and only swap it in once it has loaded, so a failed
      reload keeps the last good picture on screen instead of a broken one. */
   function loadOne(slot) {
     clearTimeout(slot.timer);
-    var probe = el("img", { alt: slot.title + " (SAWS chart)", width: String(slot.w), height: String(slot.h), decoding: "async" });
+    var probe = newImg(slot);
     probe.addEventListener("load", function () {
-      if (slot.img) slot.img.replaceWith(probe);
-      else slot.btn.insertBefore(probe, slot.btn.firstChild);
-      slot.img = probe;
+      show(slot, probe);
+      slot.savedAt = null;
       slot.tries = 0;
-      slot.placeholder.hidden = true;
-      slot.btn.hidden = false;
       showMsg(slot, "");
+      // it really is a picture: tell the service worker to keep it
+      if (sw()) sw().postMessage({ keep: probe.src, as: slot.savedUrl });
     });
     probe.addEventListener("error", function () {
       slot.tries++;
       var wait = IMG_RETRY_S[slot.tries - 1];
-      if (slot.img) showMsg(slot, "Couldn't refresh, showing the previous image" + (wait ? "; trying again." : "."));
-      else {
-        slot.placeholder.hidden = true;
-        showMsg(slot, wait ? "Image not loading; trying again in " + (wait < 60 ? wait + " s" : wait / 60 + " min") + "." : "Image not loading.");
-      }
+      function report() { slot.placeholder.hidden = true; showMsg(slot, failText(slot, wait)); }
+      if (slot.img) report(); else showSaved(slot, report);
       if (wait) slot.timer = setTimeout(function () {
         if (document.visibilityState === "visible") loadOne(slot);
         else slot.tries--; // hidden tab: let the next visible tick handle it
@@ -587,6 +631,8 @@
     window.addEventListener("storage", function (ev) {
       if (ev.key === CACHE_KEY) { var c = readCache(); if (c) { cache = c; renderAll(); } }
     });
+    // keeps the last good copy of each image (sw.js); needs https (or localhost)
+    if (navigator.serviceWorker && window.isSecureContext) navigator.serviceWorker.register("sw.js").catch(function () {});
     renderImages();
     renderAll();
     maybeFetch(false);
