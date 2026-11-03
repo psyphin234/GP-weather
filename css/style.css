@@ -190,7 +190,14 @@ table.astro td { font-variant-numeric: tabular-nums; font-weight: 600; }
 .moon { display: flex; align-items: center; gap: 10px; }
 .moon-icon svg { display: block; }
 
-/* ---------------------------------------------------------------- 5–7. links */
+/* ---------------------------------------------------------------- 5. radar */
+.radar-grid { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); }
+@media (min-width: 720px) { .radar-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+figure.radar { margin: 0; }
+figure.radar figcaption { margin-bottom: 4px; }
+figure.radar img { display: block; width: 100%; height: auto; border-radius: 8px; background: #000; }
+
+/* ---------------------------------------------------------------- links */
 .stations { list-style: none; padding: 0; margin: 8px 0; display: grid; gap: 6px; }
 .stations li { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
 .icao { font-family: ui-monospace, Consolas, monospace; font-weight: 700; color: var(--accent); }

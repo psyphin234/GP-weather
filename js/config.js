@@ -47,10 +47,21 @@
     clearCloud: 25    // average cloud cover below this (%): "Clear sky"
   };
 
-  // Radar panel buttons. SAWS images can't be embedded (login + SameSite=Strict
-  // session cookie, checked 2026-11-03), so they are links that open on SAWS.
+  // ---- radar images -------------------------------------------------------------
+  // SAWS Irene radar, as re-published without a login by FlyWatch (Africa Flight
+  // Group), which lists them in /api/weather/images/Radar with source "WeatherSA".
+  // Shown as plain <img>s, reloaded at most every REFRESH_MIN minutes while the tab
+  // is visible. (SAWS's own aviation site can't be embedded: login + SameSite=Strict
+  // session cookie, checked 2026-11-03.)
+  var RADAR_IMAGES = [
+    { title: "Irene radar, 50 km",  url: "https://www.flywatch.com/api/weather/images/individual/IRS50.gif" },
+    { title: "Irene radar, 300 km", url: "https://www.flywatch.com/api/weather/images/individual/IRS.gif" }
+  ];
+  var RADAR_SOURCE_PAGE = "https://www.flywatch.com/tracking/weather/radar";
+
+  // Buttons under the radar images.
   var RADAR_LINKS = [
-    { label: "SAWS aviation radar: Irene (login)", url: "https://aviation.weathersa.co.za/ftpfile.php?f=IRS.gif&type=RADAR" },
+    { label: "FlyWatch radar page", url: RADAR_SOURCE_PAGE },
     { label: "Windy: satellite over Gauteng", url: "https://www.windy.com/-Satellite-satellite?satellite,-26.000,28.000,8" },
     { label: "Windy: thunderstorm / CAPE layer", url: "https://www.windy.com/-CAPE-Index-cape?cape,-26.000,28.000,8" }
   ];
@@ -65,6 +76,8 @@
     MIN_MANUAL_MIN: MIN_MANUAL_MIN,
     STORM: STORM,
     NIGHT: NIGHT,
+    RADAR_IMAGES: RADAR_IMAGES,
+    RADAR_SOURCE_PAGE: RADAR_SOURCE_PAGE,
     RADAR_LINKS: RADAR_LINKS,
     LINKS_CHECKED: LINKS_CHECKED,
     TIMEZONE: "Africa/Johannesburg"

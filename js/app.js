@@ -390,15 +390,45 @@
     setFooter("astro", "calculated on this device (Meeus formulas; sun ±2 min, moon ±10 min): no download", hm(nowD) + " (" + fmtDayLong.format(nowD) + ")");
   }
 
-  // ---------------------------------------------------------------- 5. radar (links only)
-  function renderLinks() {
+  // ---------------------------------------------------------------- 5. radar
+  // SAWS Irene radar images as re-published by FlyWatch: plain <img>s, reloaded
+  // at most every REFRESH_MIN minutes and only while the tab is visible.
+  var radarImgs = [], radarLoadedAt = 0;
+
+  function renderRadar() {
     var r = $("radar-body");
     r.textContent = "";
+    var grid = el("div", { class: "radar-grid" });
+    radarImgs = C.RADAR_IMAGES.map(function (x) {
+      var img = el("img", { alt: x.title + " (SAWS weather radar image)", width: "750", height: "691", decoding: "async" });
+      var msg = el("p", { class: "small warn", hidden: true }, ["Couldn't load this image. ", link("Open the FlyWatch radar page", C.RADAR_SOURCE_PAGE)]);
+      img.addEventListener("error", function () { msg.hidden = false; img.hidden = true; });
+      img.addEventListener("load", function () { msg.hidden = true; img.hidden = false; });
+      grid.appendChild(el("figure", { class: "radar" }, [
+        el("figcaption", null, [el("strong", { text: x.title }), " ", link("full size", x.url, "small")]),
+        img, msg
+      ]));
+      return { img: img, url: x.url };
+    });
+    r.appendChild(grid);
+    r.appendChild(el("p", { class: "small muted", text: "The radar's own time is printed on each image: check it, as the image can be older than the reload time below. Pinch or tap “full size” to zoom." }));
     var rl = el("div", { class: "btns" });
     C.RADAR_LINKS.forEach(function (x) { rl.appendChild(link(x.label, x.url, "btn")); });
     r.appendChild(rl);
-    r.appendChild(el("p", { class: "small muted", text: "SAWS radar images open on the SAWS aviation site: you need your own login there. They can't be shown on this page (SAWS only serves them to its own pages)." }));
-    setFooter("radar", "links only", "links checked " + C.LINKS_CHECKED);
+  }
+
+  function radarFooter() {
+    setFooter("radar", el("span", null, ["SAWS (Irene radar) via ", link("FlyWatch", C.RADAR_SOURCE_PAGE)]),
+              radarLoadedAt ? "images reloaded " + stamp(radarLoadedAt) : "not loaded yet");
+  }
+
+  function loadRadar(minGap) {
+    if (document.visibilityState !== "visible" || !radarImgs.length) return;
+    if (minutesSince(radarLoadedAt) < minGap) return;
+    radarLoadedAt = Date.now();
+    var t = Math.floor(radarLoadedAt / 60000); // new URL each reload, so the browser fetches it again
+    radarImgs.forEach(function (x) { x.img.src = x.url + "?t=" + t; });
+    radarFooter();
   }
 
   // ---------------------------------------------------------------- render loop
@@ -424,10 +454,12 @@
 
   function tick() {
     maybeFetch(false);
+    loadRadar(C.REFRESH_MIN);
     if (Math.floor(Date.now() / 3600000) !== lastHour) renderAll();
     else { renderStatus(); refreshAges(); }
   }
   function refreshAges() {
+    if (radarLoadedAt) radarFooter();
     if (!cache) return;
     ["storm", "points", "night"].forEach(function (p) {
       var u = document.querySelector("#" + p + "-meta .upd");
@@ -439,15 +471,16 @@
     var sel = $("astro-loc");
     C.LOCATIONS.forEach(function (l) { sel.appendChild(el("option", { value: l.id, text: l.name, selected: l.id === C.ASTRO_DEFAULT })); });
     sel.addEventListener("change", renderAstro);
-    $("refresh").addEventListener("click", function () { maybeFetch(true); });
+    $("refresh").addEventListener("click", function () { maybeFetch(true); loadRadar(C.MIN_MANUAL_MIN); });
     document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") tick(); });
     // another tab of this page fetched: use its data instead of fetching again
     window.addEventListener("storage", function (ev) {
       if (ev.key === CACHE_KEY) { var c = readCache(); if (c) { cache = c; renderAll(); } }
     });
-    renderLinks();
+    renderRadar();
     renderAll();
     maybeFetch(false);
+    loadRadar(0);
     setInterval(tick, 60000);
   }
 

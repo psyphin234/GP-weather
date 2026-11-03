@@ -204,8 +204,9 @@
   report(C.LOCATIONS.every(function (l) { return l.lat < -24 && l.lat > -28 && l.lon > 26 && l.lon < 30; }), "every location is in greater Gauteng");
   report(C.LOCATIONS.some(function (l) { return l.id === C.ASTRO_DEFAULT; }), "astro default is a location id");
   report(C.REFRESH_MIN >= 10 && C.REFRESH_MIN <= 15 && C.MIN_MANUAL_MIN >= 10, "refresh interval is 10–15 min, manual at least 10");
-  var allUrls = [].concat(C.RADAR_LINKS).map(function (x) { return x.url; }).filter(Boolean);
-  report(allUrls.every(function (u) { return /^https:\/\//.test(u); }), "all links are https");
+  var allUrls = [].concat(C.RADAR_LINKS, C.RADAR_IMAGES).map(function (x) { return x.url; }).filter(Boolean);
+  report(allUrls.every(function (u) { return /^https:\/\//.test(u); }), "all links and images are https");
+  report(allUrls.every(function (u) { return u.indexOf("aviation.weathersa.co.za") < 0; }), "nothing points at the SAWS aviation site (owner's rule)");
 
   $("summary").textContent = fail ? (fail + " FAILED, " + pass + " passed") : ("ALL PASSED (" + pass + ")");
 })();
