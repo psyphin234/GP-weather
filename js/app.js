@@ -454,8 +454,10 @@
     var again = wait ? "; trying again in " + (wait < 60 ? wait + " s" : wait / 60 + " min") + "." : ".";
     if (slot.savedAt) {
       var at = new Date(slot.savedAt), today = fmtDay.format(at) === fmtDay.format(new Date());
-      return "Not loading. Saved copy from " + (today ? "" : fmtDay.format(at) + " ") + fmtHM.format(at) +
-             (slot.daily && !today ? " (not today's chart)" : "") + again;
+      // savedAt is when this phone got it, not the image's own time (unreadable: no CORS)
+      return "Not loading: last copy, fetched " + (today ? "" : fmtDay.format(at) + " ") + fmtHM.format(at) +
+             (slot.daily && !today ? " (not today's chart)" : "") + ". Go by the time printed on it." +
+             (wait ? " Trying again in " + (wait < 60 ? wait + " s" : wait / 60 + " min") + "." : "");
     }
     return (slot.img ? "Couldn't refresh, showing the previous image" : "Image not loading") + again;
   }
