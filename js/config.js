@@ -14,6 +14,7 @@
     { id: "magalies", name: "Magaliesberg",            short: "Magalies", lat: -25.81, lon: 27.55 },
     { id: "hbp",      name: "Hartbeespoort",           short: "H'poort",   lat: -25.74, lon: 27.85 },
     { id: "cradle",   name: "Cradle of Humankind",     short: "Cradle",    lat: -25.97, lon: 27.73 },
+    { id: "kdorp",    name: "Krugersdorp",             short: "K'dorp",    lat: -26.09, lon: 27.75 },
     { id: "pta",      name: "Pretoria",                short: "Pretoria",  lat: -25.746, lon: 28.188 },
     { id: "jhb",      name: "Johannesburg",            short: "Joburg",    lat: -26.204, lon: 28.047 }
   ];
