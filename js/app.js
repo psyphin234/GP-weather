@@ -163,6 +163,7 @@
 
   function renderStatus() {
     renderUtcNow();
+    renderAstroNow();
     var s = $("status-text"), btn = $("refresh");
     var parts = [];
     if (inflight) parts.push("Updating…");
@@ -373,10 +374,43 @@
     return new Date(mid + dayOffset * 864e5);
   }
 
+  function astroLoc() {
+    var sel = $("astro-loc");
+    return C.LOCATIONS.filter(function (l) { return l.id === sel.value; })[0] || C.LOCATIONS[0];
+  }
+
+  /* Where the sun and moon are right now, as a rough nav aid: bearing from TRUE
+     north (a compass reads magnetic) and height above the horizon. Below the
+     horizon: when and where it next rises. Redrawn every minute. */
+  function renderAstroNow() {
+    var box = $("astro-now");
+    if (!box) return;
+    var L = astroLoc(), now = new Date(), today = localMidnight(0);
+    function dir(b) { return Math.round(b) % 360 + "° " + W.compass(b); }
+    function row(icon, name, pos, rise) {
+      var where = pos.alt > 0
+        ? [el("strong", { text: dir(pos.bearing) }), " · " + Math.round(pos.alt) + "° up"]
+        : [el("span", { class: "muted", text: "down" }),
+           rise ? " · rises " + hm(rise.t) + " at " : "", rise ? el("span", { class: "nowrap", text: dir(rise.bearing) }) : ""];
+      return el("div", { class: "astro-now-row" }, [el("span", { class: "astro-now-name", text: icon + " " + name }), el("span", null, where)]);
+    }
+    var sunR = A.sunTimes(new Date(today.valueOf() + 12 * 36e5), L.lat, L.lon).sunrise;
+    if (!sunR || sunR <= now) sunR = A.sunTimes(new Date(today.valueOf() + 36 * 36e5), L.lat, L.lon).sunrise;
+    var moonR = A.moonTimes(now, L.lat, L.lon).rise;
+    box.textContent = "";
+    box.appendChild(el("div", { class: "astro-now-head small muted", text: "Now · bearing from true north" }));
+    box.appendChild(row("☀", "Sun", A.sunPosition(now, L.lat, L.lon),
+      sunR && { t: sunR, bearing: A.sunPosition(sunR, L.lat, L.lon).bearing }));
+    box.appendChild(row("☾", "Moon", A.moonPosition(now, L.lat, L.lon),
+      moonR && { t: moonR, bearing: A.moonPosition(moonR, L.lat, L.lon).bearing }));
+  }
+
   function renderAstro() {
-    var sel = $("astro-loc"), L = C.LOCATIONS.filter(function (l) { return l.id === sel.value; })[0] || C.LOCATIONS[0];
+    var L = astroLoc();
     var box = $("astro-body");
     box.textContent = "";
+    box.appendChild(el("div", { id: "astro-now", class: "astro-now" }));
+    renderAstroNow();
     var nowD = new Date(), ill = A.moonIllumination(nowD);
     var days = [0, 1].map(function (k) {
       var mid = localMidnight(k), noon = new Date(mid.valueOf() + 12 * 36e5);
@@ -397,7 +431,6 @@
       }))
     ]);
     var full = A.nextPhase(nowD, 0.5), nw = A.nextPhase(nowD, 0);
-    var moonUp = A.moonAltitude(nowD, L.lat, L.lon) > 0;
     box.appendChild(el("div", { class: "astro-wrap" }, [
       el("div", { class: "table-scroll" }, [tbl]),
       el("div", { class: "moon" }, [
@@ -405,7 +438,6 @@
         el("div", null, [
           el("strong", { text: A.phaseName(ill.phase) }),
           el("div", { text: Math.round(ill.fraction * 100) + "% lit, " + (ill.phase < 0.5 ? "growing" : "shrinking") }),
-          el("div", { class: "small muted", text: "Moon is " + (moonUp ? "up" : "below the horizon") + " now" }),
           el("div", { class: "small", text: "Full moon " + (full ? fmtDay.format(full) : "–") + " · New moon " + (nw ? fmtDay.format(nw) : "–") })
         ])
       ])

@@ -54,6 +54,25 @@
   near(A.moonIllumination(sast("2026-06-21 12:00")).fraction, 0.4517, 0.02, "2026-06-21 12:00 moon fraction lit");
   near(A.moonIllumination(sast("2026-12-21 12:00")).fraction, 0.898, 0.02, "2026-12-21 12:00 moon fraction lit");
 
+  var POS = [
+    // SAST time, sun bearing (deg from true north), sun alt, moon bearing, moon alt
+    // (PyEphem, topocentric, refraction at 1010 hPa)
+    ["2026-11-03 06:00", 102.67, 8.59, 28.24, 47.03],
+    ["2026-11-03 10:00", 73.05, 62.03, 309.43, 36.16],
+    ["2026-11-03 16:30", 264.25, 24.48, 258.75, -43.84],
+    ["2026-06-21 12:00", 2.74, 40.78, 87.78, 2.63],
+    ["2026-12-21 21:00", 226.35, -23.42, 12.58, 37.78],
+    ["2026-11-04 03:00", 126.38, -28.32, 76.43, 10.29]
+  ];
+  function angDiff(a, b) { return ((a - b) % 360 + 540) % 360 - 180; }
+  POS.forEach(function (r) {
+    var s = A.sunPosition(sast(r[0]), PTA[0], PTA[1]), m = A.moonPosition(sast(r[0]), PTA[0], PTA[1]);
+    near(angDiff(s.bearing, r[1]), 0, 0.5, r[0] + " sun bearing vs ephem, deg");
+    near(s.alt - r[2], 0, 0.5, r[0] + " sun altitude vs ephem, deg");
+    near(angDiff(m.bearing, r[3]), 0, 2.5, r[0] + " moon bearing vs ephem, deg");
+    near(m.alt - r[4], 0, 1.5, r[0] + " moon altitude vs ephem, deg");
+  });
+
   function hoursDiff(d, s) { return d ? (d - sast(s)) / 36e5 : null; }
   near(hoursDiff(A.nextPhase(sast("2026-11-03 12:00"), 0.5), "2026-11-24 16:53"), 0, 8, "next full moon after 3 Nov, hours");
   near(hoursDiff(A.nextPhase(sast("2026-11-03 12:00"), 0), "2026-11-09 09:02"), 0, 8, "next new moon after 3 Nov, hours");

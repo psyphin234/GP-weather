@@ -18,6 +18,9 @@
   function rightAscension(l, b) { return atan(sin(l) * cos(e) - tan(b) * sin(e), cos(l)); }
   function declination(l, b) { return asin(sin(b) * cos(e) + cos(b) * sin(e) * sin(l)); }
   function altitude(H, phi, dec) { return asin(sin(phi) * sin(dec) + cos(phi) * cos(dec) * cos(H)); }
+  // from SOUTH, westward (SunCalc's convention); bearing() turns it into degrees from true north
+  function azimuth(H, phi, dec) { return atan(sin(H), cos(H) * sin(phi) - tan(dec) * cos(phi)); }
+  function bearing(az) { return ((az / rad + 180) % 360 + 360) % 360; }
   function siderealTime(d, lw) { return rad * (280.16 + 360.9856235 * d) - lw; }
   function astroRefraction(h) {
     if (h < 0) h = 0; // formula is for h >= 0; below that it would blow up
@@ -59,6 +62,15 @@
     return { dawn: civ[0], sunrise: rs[0], noon: fromJulian(Jnoon), sunset: rs[1], dusk: civ[1] };
   }
 
+  /* Where the sun is now: bearing in degrees from TRUE north (clockwise) and
+     altitude in degrees above the horizon (refraction only above it). */
+  function sunPosition(date, lat, lng) {
+    var lw = rad * -lng, phi = rad * lat, d = toDays(date),
+        c = sunCoords(d), H = siderealTime(d, lw) - c.ra,
+        h = altitude(H, phi, c.dec);
+    return { bearing: bearing(azimuth(H, phi, c.dec)), alt: (h > 0 ? h + astroRefraction(h) : h) / rad };
+  }
+
   // ---- moon -----------------------------------------------------------------
   function moonCoords(d) {
     var L = rad * (218.316 + 13.176396 * d),  // ecliptic longitude
@@ -75,6 +87,17 @@
         c = moonCoords(d), H = siderealTime(d, lw) - c.ra,
         h = altitude(H, phi, c.dec);
     return h + astroRefraction(h);
+  }
+
+  /* Like sunPosition. Includes parallax (up to ~1 deg: the moon is close enough
+     that seen from the ground it sits lower than from the Earth's centre).
+     The simple moon orbit puts the bearing within about 2 deg. */
+  function moonPosition(date, lat, lng) {
+    var lw = rad * -lng, phi = rad * lat, d = toDays(date),
+        c = moonCoords(d), H = siderealTime(d, lw) - c.ra,
+        h = altitude(H, phi, c.dec);
+    h -= asin(6378.14 / c.dist * cos(h));
+    return { bearing: bearing(azimuth(H, phi, c.dec)), alt: (h > 0 ? h + astroRefraction(h) : h) / rad };
   }
 
   /* Illumination: fraction lit (0..1) and phase (0 new, 0.25 first quarter,
@@ -171,6 +194,8 @@
     moonTimes: moonTimes,
     moonIllumination: moonIllumination,
     moonAltitude: moonAltitude,
+    sunPosition: sunPosition,
+    moonPosition: moonPosition,
     nextPhase: nextPhase,
     phaseName: phaseName
   };

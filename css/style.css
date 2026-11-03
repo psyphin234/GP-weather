@@ -197,6 +197,11 @@ table.hourly tr.ts td, table.hourly tr.ts th { color: #ffd0da; background: color
   font: inherit; font-size: 0.9rem; background: var(--surface-2); color: var(--text);
   border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; max-width: 100%;
 }
+.astro-now { margin-top: 10px; display: grid; gap: 4px; font-variant-numeric: tabular-nums; }
+.astro-now-row { display: flex; gap: 10px; align-items: baseline; }
+.astro-now-name { flex: 0 0 3.8em; }
+.astro-now-row strong, .astro-now .nowrap { white-space: nowrap; }
+.astro-now-row strong { color: var(--accent); font-size: 1.05rem; }
 .astro-wrap { display: flex; flex-wrap: wrap; gap: 12px 24px; align-items: center; margin-top: 10px; }
 table.astro td, table.astro th { font-size: 0.9rem; }
 table.astro td { font-variant-numeric: tabular-nums; font-weight: 600; }
