@@ -118,7 +118,15 @@
   }
 
   // ---------------------------------------------------------------- status bar
+  // "now 07:30 UTC" next to the radar heading, to compare with the image times
+  var fmtUTC = new Intl.DateTimeFormat("en-ZA", { timeZone: "UTC", hour: "2-digit", minute: "2-digit", hour12: false });
+  function renderUtcNow() {
+    var u = $("utc-now");
+    if (u) u.textContent = " · now " + fmtUTC.format(new Date()) + " UTC";
+  }
+
   function renderStatus() {
+    renderUtcNow();
     var s = $("status-text"), btn = $("refresh");
     var parts = [];
     if (inflight) parts.push("Updating…");
@@ -220,25 +228,22 @@
       var L = C.LOCATIONS[i], c = loc.current, n24 = W.next24(loc, now),
           night = W.nightSummary(loc, now, C.NIGHT), h = loc.hourly;
       var card = el("article", { class: "card", id: "area-" + L.id }, [
-        el("header", { class: "card-head" }, [
-          el("h3", { text: L.name })
-        ]),
         el("div", { class: "now-row" }, [
           el("span", { class: "big", text: deg(c.temperature_2m) }),
           el("span", { class: "now-wx" }, [
-            el("strong", { text: W.wmoText(c.weather_code) }),
-            el("span", { class: "small muted", text: "Feels " + deg(c.apparent_temperature) })
+            el("h3", { text: L.name }),
+            el("span", { class: "small" }, [W.wmoText(c.weather_code), el("span", { class: "muted", text: " · feels " + deg(c.apparent_temperature) })])
           ]),
-          n24.thunder ? el("span", { class: "badge lv3", text: "Thunder next 24 h" }) : null
+          n24.thunder ? el("span", { class: "badge lv3", title: "Thunder in the next 24 h", text: "⚡ 24 h" }) : null
         ]),
-        el("dl", { class: "stats" }, [
-          stat("Tonight low", deg(night && night.low), night ? [el("span", { class: "small muted", text: " " + hmS(night.lowAt) })] : null),
-          stat("Dew point", deg(c.dew_point_2m), [el("span", { class: "small muted", text: " RH " + c.relative_humidity_2m + "%" })]),
-          stat("Wind", W.compass(c.wind_direction_10m) + " " + Math.round(c.wind_speed_10m) + " km/h", [arrow(c.wind_direction_10m)]),
-          stat("Gusts", Math.round(c.wind_gusts_10m) + " km/h", [el("span", { class: "small muted", text: " max 24 h " + Math.round(n24.gustMax || 0) })]),
-          stat("Cloud", c.cloud_cover + "%"),
-          stat("Visibility", km(c.visibility)),
-          stat("Rain next 24 h", mm(n24.rain), [el("span", { class: "small muted", text: " max " + (n24.popMax || 0) + "%" })])
+        // 3 x 2 grid; units sit in the labels so the values stay short
+        el("dl", { class: "stats tight" }, [
+          stat("Low tonight", deg(night && night.low), night ? [el("span", { class: "small muted", text: hmS(night.lowAt) })] : null),
+          stat("Wind km/h", W.compass(c.wind_direction_10m) + " " + Math.round(c.wind_speed_10m), [arrow(c.wind_direction_10m)]),
+          stat("Gust · 24h max", String(Math.round(c.wind_gusts_10m)), [el("span", { class: "small muted", text: "· " + Math.round(n24.gustMax || 0) })]),
+          stat("Rain 24h", mm(n24.rain), [el("span", { class: "small muted", text: (n24.popMax || 0) + "%" })]),
+          stat("Dew point", deg(c.dew_point_2m), [el("span", { class: "small muted", text: c.relative_humidity_2m + "%" })]),
+          stat("Cloud · vis", c.cloud_cover + "%", [el("span", { class: "small muted", text: km(c.visibility) })])
         ])
       ]);
 
