@@ -214,6 +214,10 @@ figure.chart figcaption { margin-bottom: 4px; }
   background: #000; border-radius: 8px; overflow: hidden; cursor: zoom-in;
 }
 .img-open img { display: block; width: 100%; height: auto; }
+.img-wait {
+  display: grid; place-items: center; width: 100%; border-radius: 8px;
+  background: var(--surface-2); color: var(--text-muted); font-size: 0.85rem;
+}
 .img-hint {
   position: absolute; right: 6px; bottom: 6px; padding: 3px 8px; border-radius: 999px;
   background: rgba(4, 8, 23, 0.85); color: var(--text); font-size: 0.75rem;

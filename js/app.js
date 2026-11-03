@@ -416,20 +416,61 @@
   // Plain <img>s, reloaded at most every REFRESH_MIN minutes and only while the
   // tab is visible. Tapping one opens the full-screen viewer.
   var shownImgs = [], imagesLoadedAt = 0;
+  // A failed load is retried after these delays (FlyWatch sometimes fails a request
+  // or serves a half-written file); after that, the next scheduled reload tries again.
+  var IMG_RETRY_S = [20, 60, 180];
 
   function figure(x) {
-    var img = el("img", { alt: x.title + " (SAWS chart)", width: String(x.w), height: String(x.h), decoding: "async" });
-    var msg = el("p", { class: "small warn", hidden: true }, ["Image not loading. ", link("Open FlyWatch", C.RADAR_SOURCE_PAGE)]);
-    var btn = el("button", { type: "button", class: "img-open", "aria-label": "Show " + x.title + " full screen" },
-                 [img, el("span", { class: "img-hint", "aria-hidden": "true", text: "\u2922" })]);
-    img.addEventListener("error", function () { msg.hidden = false; btn.hidden = true; });
-    img.addEventListener("load", function () { msg.hidden = true; btn.hidden = false; });
-    btn.addEventListener("click", function () { openViewer(img.currentSrc || img.src, x.title); });
-    shownImgs.push({ img: img, url: x.url });
+    var slot = { url: x.url, title: x.title, img: null, tries: 0, timer: null };
+    slot.msg = el("p", { class: "small warn", hidden: true });
+    slot.btn = el("button", { type: "button", class: "img-open", hidden: true, "aria-label": "Show " + x.title + " full screen" },
+                  [el("span", { class: "img-hint", "aria-hidden": "true", text: "\u2922" })]);
+    slot.placeholder = el("div", { class: "img-wait", style: "aspect-ratio:" + x.w + "/" + x.h, text: "Loading\u2026" });
+    slot.w = x.w; slot.h = x.h;
+    slot.btn.addEventListener("click", function () { if (slot.img) openViewer(slot.img.currentSrc || slot.img.src, x.title); });
+    shownImgs.push(slot);
     return el("figure", { class: "chart" }, [
       el("figcaption", null, [el("strong", { text: x.title })]),
-      btn, msg
+      slot.placeholder, slot.btn, slot.msg
     ]);
+  }
+
+  function showMsg(slot, text) {
+    slot.msg.textContent = "";
+    if (!text) { slot.msg.hidden = true; return; }
+    slot.msg.appendChild(document.createTextNode(text + " "));
+    slot.msg.appendChild(link("Open FlyWatch", C.RADAR_SOURCE_PAGE));
+    slot.msg.hidden = false;
+  }
+
+  /* Load one image off-screen and only swap it in once it has loaded, so a failed
+     reload keeps the last good picture on screen instead of a broken one. */
+  function loadOne(slot) {
+    clearTimeout(slot.timer);
+    var probe = el("img", { alt: slot.title + " (SAWS chart)", width: String(slot.w), height: String(slot.h), decoding: "async" });
+    probe.addEventListener("load", function () {
+      if (slot.img) slot.img.replaceWith(probe);
+      else slot.btn.insertBefore(probe, slot.btn.firstChild);
+      slot.img = probe;
+      slot.tries = 0;
+      slot.placeholder.hidden = true;
+      slot.btn.hidden = false;
+      showMsg(slot, "");
+    });
+    probe.addEventListener("error", function () {
+      slot.tries++;
+      var wait = IMG_RETRY_S[slot.tries - 1];
+      if (slot.img) showMsg(slot, "Couldn't refresh, showing the previous image" + (wait ? "; trying again." : "."));
+      else {
+        slot.placeholder.hidden = true;
+        showMsg(slot, wait ? "Image not loading; trying again in " + (wait < 60 ? wait + " s" : wait / 60 + " min") + "." : "Image not loading.");
+      }
+      if (wait) slot.timer = setTimeout(function () {
+        if (document.visibilityState === "visible") loadOne(slot);
+        else slot.tries--; // hidden tab: let the next visible tick handle it
+      }, wait * 1000);
+    });
+    probe.src = slot.url + "?t=" + Date.now(); // new URL each try, so the browser fetches it again
   }
 
   function renderImages() {
@@ -449,8 +490,7 @@
     if (document.visibilityState !== "visible" || !shownImgs.length) return false;
     if (minutesSince(imagesLoadedAt) < minGap) return false;
     imagesLoadedAt = Date.now();
-    var t = Math.floor(imagesLoadedAt / 60000); // new URL each reload, so the browser fetches it again
-    shownImgs.forEach(function (x) { x.img.src = x.url + "?t=" + t; });
+    shownImgs.forEach(function (slot) { slot.tries = 0; loadOne(slot); });
     return true;
   }
 
