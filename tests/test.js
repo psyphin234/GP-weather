@@ -197,6 +197,23 @@
   eq(n.thunder, true, "thunder in next 24 h");
   eq(W.currentIndex(rainy, T0 - 10), -1, "no current hour before the data starts");
 
+  // ---------------------------------------------------------------- refresh timing
+  var F = window.SARWX_REFRESH.fetchWait, NOW = 1793690000000, MIN = 60000;
+  function fw(o) { o.now = NOW; o.cfg = C; return F(o); }
+  eq(fw({ dataAt: 0, lastAttempt: 0, failures: 0 }), 0, "first visit: fetch now");
+  eq(fw({ dataAt: 0, lastAttempt: NOW - 60 * MIN, failures: 0 }), 0, "no data, old attempt: fetch now");
+  eq(fw({ dataAt: 0, lastAttempt: NOW - 1 * MIN, failures: 0 }), 0,
+     "no data after a reload cut off a request 1 min ago: fetch now (was a 14-min wait, the stuck 'Waiting for forecast data' bug)");
+  eq(fw({ dataAt: 0, lastAttempt: NOW - 10000, failures: 0 }), 20000, "no data: at most one attempt per 30 s");
+  eq(fw({ dataAt: 0, lastAttempt: NOW, failures: 1 }), 1 * MIN, "no data, 1 failure: retry in 1 min");
+  eq(fw({ dataAt: 0, lastAttempt: NOW, failures: 3 }), 4 * MIN, "no data, 3 failures: retry in 4 min");
+  eq(fw({ dataAt: 0, lastAttempt: NOW, failures: 9 }), C.REFRESH_MIN * MIN, "no data, many failures: back off to the normal interval");
+  eq(fw({ dataAt: NOW - 5 * MIN, lastAttempt: NOW - 5 * MIN, failures: 0 }), (C.REFRESH_MIN - 5) * MIN, "data 5 min old: wait for the normal interval");
+  eq(fw({ dataAt: NOW - 20 * MIN, lastAttempt: NOW - 20 * MIN, failures: 0 }), 0, "data 20 min old: fetch now");
+  eq(fw({ dataAt: NOW - 20 * MIN, lastAttempt: NOW - 2 * MIN, failures: 1 }), (C.REFRESH_MIN - 2) * MIN, "data on screen, last attempt failed 2 min ago: normal interval from the attempt");
+  eq(fw({ dataAt: NOW - 5 * MIN, lastAttempt: NOW - 5 * MIN, failures: 0, force: true }), (C.MIN_MANUAL_MIN - 5) * MIN, "Refresh button with data: manual minimum");
+  eq(fw({ dataAt: 0, lastAttempt: NOW - 1 * MIN, failures: 0, force: true }), 0, "Refresh button with no data: allowed");
+
   // config sanity
   var ids = {};
   C.LOCATIONS.forEach(function (l) { ids[l.id] = (ids[l.id] || 0) + 1; });

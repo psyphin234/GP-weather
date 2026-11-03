@@ -87,21 +87,34 @@
   }
   function lastAttempt() { return +(localStorage.getItem(ATTEMPT_KEY) || 0); }
 
-  var cache = readCache(), inflight = false, lastError = null;
+  var cache = readCache(), inflight = false, lastError = null, failures = 0, retryTimer = null;
+  var FETCH_TIMEOUT_MS = 20000; // a hung request on a weak signal must not block the page
 
   function minutesSince(ms) { return (Date.now() - ms) / 60000; }
 
-  /* force = the Refresh button. Either way: visible tab only, one request in
-     flight, and never sooner than the minimum gap (attempts count, so a failing
-     network or repeated reloads don't hammer the API). */
+  // ms until a request may go (see js/refresh.js for the rules)
+  function waitMs(force) {
+    return window.SARWX_REFRESH.fetchWait({
+      now: Date.now(), dataAt: cache ? cache.fetchedAt : 0, lastAttempt: lastAttempt(),
+      failures: failures, force: !!force, cfg: C
+    });
+  }
+
+  /* force = the Refresh button. Visible tab only, one request in flight. */
   function maybeFetch(force) {
     if (document.visibilityState !== "visible" || inflight) return;
-    var gap = minutesSince(Math.max(cache ? cache.fetchedAt : 0, lastAttempt()));
-    if (gap < (force ? C.MIN_MANUAL_MIN : C.REFRESH_MIN)) return;
+    var wait = waitMs(force);
+    if (wait > 0) {
+      // nothing on screen yet: come back exactly when allowed, not at the next minute tick
+      if (!cache && !retryTimer) retryTimer = setTimeout(function () { retryTimer = null; maybeFetch(false); }, wait + 250);
+      return;
+    }
     inflight = true;
     localStorage.setItem(ATTEMPT_KEY, String(Date.now()));
     renderStatus();
-    fetch(buildUrl(), { credentials: "omit", referrerPolicy: "no-referrer" })
+    var ctrl = window.AbortController ? new AbortController() : null;
+    var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, FETCH_TIMEOUT_MS);
+    fetch(buildUrl(), { credentials: "omit", referrerPolicy: "no-referrer", signal: ctrl ? ctrl.signal : undefined })
       .then(function (r) {
         if (!r.ok) throw new Error("Open-Meteo answered " + r.status);
         return r.json();
@@ -112,9 +125,26 @@
         cache = { key: locKey(), fetchedAt: Date.now(), data: data };
         try { localStorage.setItem(CACHE_KEY, JSON.stringify(cache)); } catch (e) { /* storage full: keep in memory */ }
         lastError = null;
+        failures = 0;
       })
-      .catch(function (e) { lastError = e.message || String(e); })
-      .then(function () { inflight = false; renderAll(); });
+      .catch(function (e) {
+        failures++;
+        lastError = e && e.name === "AbortError" ? "no answer in " + (FETCH_TIMEOUT_MS / 1000) + " s" : (e.message || String(e));
+      })
+      .then(function () {
+        clearTimeout(timer);
+        inflight = false;
+        renderAll();
+        if (!cache) maybeFetch(false); // schedules the next try
+      });
+  }
+
+  // what the panels show while there is no forecast at all
+  function noDataText() {
+    if (inflight || !lastError) return "Loading forecast…";
+    var sec = Math.ceil(waitMs(false) / 1000);
+    return "Couldn't load the forecast (" + lastError + "). Trying again " +
+      (sec <= 5 ? "now" : "in " + (sec < 90 ? sec + " s" : Math.ceil(sec / 60) + " min")) + ".";
   }
 
   // ---------------------------------------------------------------- status bar
@@ -131,15 +161,37 @@
     var parts = [];
     if (inflight) parts.push("Updating…");
     else if (cache) parts.push("Forecast from " + stamp(cache.fetchedAt));
-    else parts.push("No forecast loaded yet");
+    else parts.push("No forecast yet");
     if (lastError) parts.push("Last update failed (" + lastError + ")" + (cache ? ": showing saved data" : ""));
     if (cache && minutesSince(cache.fetchedAt) > 90) parts.push("Data is over 90 min old");
-    s.textContent = parts.join(" · ");
     s.className = lastError || (cache && minutesSince(cache.fetchedAt) > 90) ? "warn" : "";
-    var gap = minutesSince(Math.max(cache ? cache.fetchedAt : 0, lastAttempt()));
-    var wait = Math.ceil(C.MIN_MANUAL_MIN - gap);
-    btn.disabled = inflight || wait > 0;
-    btn.textContent = wait > 0 && !inflight ? "Refresh in " + wait + " min" : "Refresh";
+    if (checkNote && !inflight) parts.push(checkNote);
+    s.textContent = parts.join(" · ");
+    btn.disabled = inflight;
+    btn.textContent = inflight ? "Checking…" : "Refresh";
+  }
+
+  /* The Refresh button checks for new data without letting a busy thumb hammer
+     the servers: it always looks at what this browser already has (another tab
+     may have fetched newer data), but only asks Open-Meteo / FlyWatch again when
+     the minimum gap (MIN_MANUAL_MIN) has passed. Otherwise it says "up to date". */
+  var checkNote = "", checkNoteTimer = null;
+  function onRefresh() {
+    if (inflight) return;
+    var c = readCache();
+    if (c && (!cache || c.fetchedAt > cache.fetchedAt)) { cache = c; lastError = null; renderAll(); }
+    var askForecast = waitMs(true) === 0;
+    var imagesReloaded = loadImages(C.MIN_MANUAL_MIN);
+    if (askForecast) {
+      checkNote = "";
+      maybeFetch(true);
+      return;
+    }
+    var next = new Date(Date.now() + waitMs(true));
+    checkNote = (imagesReloaded ? "Radar reloaded; forecast up to date" : "Up to date") + " (next check from " + hm(next) + ")";
+    clearTimeout(checkNoteTimer);
+    checkNoteTimer = setTimeout(function () { checkNote = ""; renderStatus(); }, 6000);
+    renderStatus();
   }
 
   // ---------------------------------------------------------------- 1. storms
@@ -148,7 +200,7 @@
   function renderStorms(now) {
     var box = $("storm-body");
     box.textContent = "";
-    if (!cache) { box.appendChild(el("p", { class: "muted", text: "Waiting for forecast data…" })); return; }
+    if (!cache) { box.appendChild(el("p", { class: lastError ? "warn" : "muted", text: noDataText() })); return; }
     var per = cache.data.map(function (loc) { return W.stormDays(loc, now, C.STORM); });
     var detail = el("p", { class: "tap-detail", id: "storm-tap", "aria-live": "polite", hidden: true });
 
@@ -223,7 +275,7 @@
   function renderPoints(now) {
     var box = $("points-body");
     box.textContent = "";
-    if (!cache) { box.appendChild(el("p", { class: "muted", text: "Waiting for forecast data…" })); return; }
+    if (!cache) { box.appendChild(el("p", { class: lastError ? "warn" : "muted", text: noDataText() })); return; }
     cache.data.forEach(function (loc, i) {
       var L = C.LOCATIONS[i], c = loc.current, n24 = W.next24(loc, now),
           night = W.nightSummary(loc, now, C.NIGHT), h = loc.hourly;
@@ -278,7 +330,7 @@
   function renderNight(now) {
     var box = $("night-body");
     box.textContent = "";
-    if (!cache) { box.appendChild(el("p", { class: "muted", text: "Waiting for forecast data…" })); return; }
+    if (!cache) { box.appendChild(el("p", { class: lastError ? "warn" : "muted", text: noDataText() })); return; }
     var sums = cache.data.map(function (loc) { return W.nightSummary(loc, now, C.NIGHT); });
     var ref = sums.filter(Boolean)[0];
     if (ref) {
@@ -398,12 +450,14 @@
     radarBox.appendChild(grid);
   }
 
+  // returns true if the images were asked for again
   function loadImages(minGap) {
-    if (document.visibilityState !== "visible" || !shownImgs.length) return;
-    if (minutesSince(imagesLoadedAt) < minGap) return;
+    if (document.visibilityState !== "visible" || !shownImgs.length) return false;
+    if (minutesSince(imagesLoadedAt) < minGap) return false;
     imagesLoadedAt = Date.now();
     var t = Math.floor(imagesLoadedAt / 60000); // new URL each reload, so the browser fetches it again
     shownImgs.forEach(function (x) { x.img.src = x.url + "?t=" + t; });
+    return true;
   }
 
   // ---------------------------------------------------------------- full-screen viewer
@@ -494,7 +548,7 @@
     var sel = $("astro-loc");
     C.LOCATIONS.forEach(function (l) { sel.appendChild(el("option", { value: l.id, text: l.name, selected: l.id === C.ASTRO_DEFAULT })); });
     sel.addEventListener("change", renderAstro);
-    $("refresh").addEventListener("click", function () { maybeFetch(true); loadImages(C.MIN_MANUAL_MIN); });
+    $("refresh").addEventListener("click", onRefresh);
     document.addEventListener("visibilitychange", function () { if (document.visibilityState === "visible") tick(); });
     // another tab of this page fetched: use its data instead of fetching again
     window.addEventListener("storage", function (ev) {
