@@ -230,7 +230,7 @@ table.astro td { font-variant-numeric: tabular-nums; font-weight: 600; }
 .chart-grid { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); }
 @media (min-width: 720px) { .chart-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 figure.chart { margin: 0; }
-#storm-images figure.chart { margin-top: 12px; }
+#storm-images .chart-grid { margin-top: 12px; }
 figure.chart figcaption { margin-bottom: 4px; }
 .img-open {
   position: relative; display: block; width: 100%; padding: 0; border: 0; margin: 0;

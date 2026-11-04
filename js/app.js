@@ -512,7 +512,7 @@
 
   function figure(x) {
     var file = x.url.split("/").pop();
-    var slot = { url: x.url, title: x.title, daily: !!x.daily, img: null, savedAt: null, tries: 0, timer: null,
+    var slot = { url: x.url, title: x.title, day: x.day || null, img: null, savedAt: null, tries: 0, timer: null,
                  savedUrl: new URL("saved-image/" + file, location.href).href };
     slot.msg = el("p", { class: "small warn", hidden: true });
     slot.btn = el("button", { type: "button", class: "img-open", hidden: true, "aria-label": "Show " + x.title + " full screen" },
@@ -541,7 +541,7 @@
       var at = new Date(slot.savedAt), today = fmtDay.format(at) === fmtDay.format(new Date());
       // savedAt is when this phone got it, not the image's own time (unreadable: no CORS)
       return "Not loading: last copy, fetched " + (today ? "" : fmtDay.format(at) + " ") + fmtHM.format(at) +
-             (slot.daily && !today ? " (not today's chart)" : "") + ". Go by the time printed on it." +
+             (slot.day && !today ? " (not " + slot.day + "'s chart)" : "") + ". Go by the time printed on it." +
              (wait ? " Trying again in " + (wait < 60 ? wait + " s" : wait / 60 + " min") + "." : "");
     }
     return (slot.img ? "Couldn't refresh, showing the previous image" : "Image not loading") + again;
@@ -608,12 +608,12 @@
     shownImgs = [];
     var stormBox = $("storm-images"), radarBox = $("radar-body");
     stormBox.textContent = ""; radarBox.textContent = "";
-    var grid = el("div", { class: "chart-grid" });
+    var stormGrid = el("div", { class: "chart-grid" }), radarGrid = el("div", { class: "chart-grid" });
     C.IMAGES.forEach(function (x) {
-      if (x.panel === "storm") stormBox.appendChild(figure(x));
-      else grid.appendChild(figure(x));
+      (x.panel === "storm" ? stormGrid : radarGrid).appendChild(figure(x));
     });
-    radarBox.appendChild(grid);
+    if (stormGrid.firstChild) stormBox.appendChild(stormGrid);
+    radarBox.appendChild(radarGrid);
   }
 
   // returns true if the images were asked for again

@@ -60,10 +60,12 @@
   // embedded: login + SameSite=Strict session cookie, checked 2026-11-03.)
   //   panel  which panel it goes in: "storm" or "radar"
   //   w, h   the image's size in pixels (reserves the space while it loads)
-  //   daily  a chart for today only: a saved copy from an earlier day says so
+  //   day    "today" / "tomorrow": the chart is for that day only, so a saved copy
+  //          from an earlier day says it isn't today's / tomorrow's chart
   var FW = "https://www.flywatch.com/api/weather/images/individual/";
   var IMAGES = [
-    { panel: "storm", title: "SAWS TS probability", url: FW + "tsprob_d1.gif", w: 800, h: 600, daily: true },
+    { panel: "storm", title: "SAWS TS probability today",    url: FW + "tsprob_d1.gif", w: 800, h: 600, day: "today" },
+    { panel: "storm", title: "SAWS TS probability tomorrow", url: FW + "tsprob_d2.gif", w: 800, h: 600, day: "tomorrow" },
     { panel: "radar", title: "Irene 50 km",  url: FW + "IRS50.gif", w: 750, h: 691 },
     { panel: "radar", title: "Irene 300 km", url: FW + "IRS.gif",   w: 750, h: 691 }
   ];
