@@ -5,7 +5,7 @@
 (function () {
   "use strict";
 
-  var C = window.SARWX_CONFIG, W = window.SARWX_WX, A = window.SARWX_ASTRO;
+  var C = window.SARWX_CONFIG, W = window.SARWX_WX, A = window.SARWX_ASTRO, R = window.SARWX_REFRESH;
   var CACHE_KEY = "sarwx-openmeteo-v1";
   var ATTEMPT_KEY = "sarwx-openmeteo-attempt";
   var TZ = C.TIMEZONE;
@@ -512,14 +512,14 @@
 
   function figure(x) {
     var file = x.url.split("/").pop();
-    var slot = { url: x.url, title: x.title, day: x.day || null, img: null, savedAt: null, tries: 0, timer: null,
-                 savedUrl: new URL("saved-image/" + file, location.href).href };
+    var slot = { url: x.url, title: x.title, day: x.day || null, loop: !!x.loop, img: null, savedAt: null,
+                 shownAt: 0, tries: 0, timer: null, savedUrl: new URL("saved-image/" + file, location.href).href };
     slot.msg = el("p", { class: "small warn", hidden: true });
     slot.btn = el("button", { type: "button", class: "img-open", hidden: true, "aria-label": "Show " + x.title + " full screen" },
                   [el("span", { class: "img-hint", "aria-hidden": "true", text: "\u2922" })]);
     slot.placeholder = el("div", { class: "img-wait", style: "aspect-ratio:" + x.w + "/" + x.h, text: "Loading\u2026" });
     slot.w = x.w; slot.h = x.h;
-    slot.btn.addEventListener("click", function () { if (slot.img) openViewer(slot.img.currentSrc || slot.img.src, x.title); });
+    slot.btn.addEventListener("click", function () { if (slot.img) openViewer(slot); });
     shownImgs.push(slot);
     return el("figure", { class: "chart" }, [
       el("figcaption", null, [el("strong", { text: x.title })]),
@@ -569,7 +569,7 @@
         if (!meta || !meta.at) { done(); return; }
         var img = newImg(slot);
         img.addEventListener("load", function () {
-          if (!slot.img) { show(slot, img); slot.savedAt = meta.at; }
+          if (!slot.img) { show(slot, img); slot.savedAt = slot.shownAt = meta.at; }
           done();
         });
         img.addEventListener("error", function () { done(); });
@@ -586,10 +586,13 @@
     probe.addEventListener("load", function () {
       show(slot, probe);
       slot.savedAt = null;
+      slot.shownAt = Date.now();
       slot.tries = 0;
       showMsg(slot, "");
       // it really is a picture: tell the service worker to keep it
-      if (sw()) sw().postMessage({ keep: probe.src, as: slot.savedUrl });
+      // (looped radar: also as one more frame of the full-screen loop)
+      if (sw()) sw().postMessage({ keep: probe.src, as: slot.savedUrl,
+                                   frames: slot.loop ? { keep: C.LOOP.keep, maxAgeMin: C.LOOP.maxAgeMin } : null });
     });
     probe.addEventListener("error", function () {
       slot.tries++;
@@ -629,19 +632,26 @@
   // A fixed overlay rather than the Fullscreen API (iPhones don't allow that for
   // images). Tap the picture to switch between fit-to-screen and 2x zoom; close
   // with the X, Esc, or the phone's Back button (the viewer adds a history entry).
+  // Looped radar (config LOOP): steps through this phone's recent copies, zoomed or
+  // not, with "fetched HH:MM · 2/3" in the bar and a pause button.
   var viewer = null, viewerImg = null, viewerTitle = null, viewerStage = null, viewerOpen = false;
+  var viewerClose = null, viewerFrame = null, viewerPlay = null, loop = null; // loop: { token, frames, i, timer, paused }
 
   function buildViewer() {
     viewerImg = el("img", { alt: "" });
     viewerTitle = el("span", { class: "viewer-title" });
     var close = el("button", { type: "button", class: "viewer-close", "aria-label": "Close full screen", text: "\u2715" });
+    viewerFrame = el("span", { class: "viewer-frame", hidden: true });
+    viewerPlay = el("button", { type: "button", class: "viewer-close viewer-play", hidden: true });
+    viewerPlay.addEventListener("click", function () { if (loop && loop.frames) setPaused(!loop.paused); });
     viewerStage = el("div", { class: "viewer-stage" }, [viewerImg]);
     viewer = el("div", { class: "viewer", role: "dialog", "aria-modal": "true", "aria-label": "Image, full screen", hidden: true }, [
-      el("div", { class: "viewer-bar" }, [viewerTitle, close]),
+      el("div", { class: "viewer-bar" }, [viewerTitle, viewerFrame, viewerPlay, close]),
       viewerStage
     ]);
     document.body.appendChild(viewer);
     close.addEventListener("click", function () { closeViewer(true); });
+    viewerClose = close;
     viewerImg.addEventListener("click", function (ev) {
       var r = viewerImg.getBoundingClientRect(),
           fx = (ev.clientX - r.left) / r.width, fy = (ev.clientY - r.top) / r.height;
@@ -659,22 +669,90 @@
     window.addEventListener("popstate", function () { if (viewerOpen) closeViewer(false); });
   }
 
-  function openViewer(src, title) {
+  function openViewer(slot) {
     if (!viewer) buildViewer();
+    var src = slot.img.currentSrc || slot.img.src;
+    stopLoop();
     viewerImg.src = src;
-    viewerImg.alt = title;
-    viewerTitle.textContent = title;
+    viewerImg.alt = slot.title;
+    viewerTitle.textContent = slot.title;
     viewer.classList.remove("zoomed");
     viewer.hidden = false;
     viewerOpen = true;
     document.documentElement.classList.add("viewer-on");
     history.pushState({ sarwxViewer: 1 }, "");
-    viewer.querySelector(".viewer-close").focus();
+    viewerClose.focus();
+    if (slot.loop) startLoop(slot, src);
+  }
+
+  /* Load the saved copies that go before the one on screen (sw.js keeps them,
+     R.loopFrames picks), then loop. Fewer than two frames: no loop. */
+  function startLoop(slot, src) {
+    if (!sw() || !window.caches || !slot.shownAt) return;
+    var token = {};
+    loop = { token: token, frames: null, i: 0, timer: null, paused: false };
+    caches.open(SAVED_CACHE).then(function (c) { return c.match(slot.savedUrl + ".frames.json"); })
+      .then(function (r) { return r ? r.json() : []; })
+      .then(function (ats) {
+        var older = R.loopFrames(Array.isArray(ats) ? ats : [], slot.shownAt, C.LOOP);
+        return Promise.all(older.map(function (t) {
+          return new Promise(function (ok) {
+            var im = new Image();
+            im.onload = function () { ok({ src: im.src, at: t }); };
+            im.onerror = function () { ok(null); };
+            im.src = slot.savedUrl + ".f" + t;
+          });
+        }));
+      })
+      .then(function (got) {
+        if (!loop || loop.token !== token) return; // closed or reopened meanwhile
+        var frames = got.filter(Boolean).concat([{ src: src, at: slot.shownAt }]);
+        if (frames.length < 2) { loop = null; return; }
+        loop.frames = frames;
+        loop.i = 0; // start from the oldest
+        viewerFrame.hidden = viewerPlay.hidden = false;
+        setPaused(false);
+      })
+      .catch(function () { if (loop && loop.token === token) loop = null; });
+  }
+
+  function showFrame() {
+    var f = loop.frames[loop.i], at = new Date(f.at),
+        today = fmtDay.format(at) === fmtDay.format(new Date());
+    viewerImg.src = f.src;
+    // when this phone fetched it, not the image's own time (unreadable: no CORS)
+    viewerFrame.textContent = "fetched " + (today ? "" : fmtDay.format(at) + " ") + fmtHM.format(at) +
+                              " \u00b7 " + (loop.i + 1) + "/" + loop.frames.length;
+  }
+
+  // the newest frame stays up longer, so the loop's end is easy to spot
+  function nextIn() { return loop.i === loop.frames.length - 1 ? C.LOOP.holdMs : C.LOOP.frameMs; }
+
+  function step() {
+    loop.i = (loop.i + 1) % loop.frames.length;
+    showFrame();
+    loop.timer = setTimeout(step, nextIn());
+  }
+
+  function setPaused(p) {
+    loop.paused = p;
+    clearTimeout(loop.timer);
+    viewerPlay.textContent = p ? "\u25B6" : "\u275A\u275A";
+    viewerPlay.setAttribute("aria-label", p ? "Play the loop" : "Pause the loop");
+    showFrame();
+    if (!p) loop.timer = setTimeout(step, nextIn());
+  }
+
+  function stopLoop() {
+    if (loop) clearTimeout(loop.timer);
+    loop = null;
+    if (viewerFrame) { viewerFrame.hidden = viewerPlay.hidden = true; viewerFrame.textContent = ""; }
   }
 
   function closeViewer(fromUi) {
     if (!viewerOpen) return;
     viewerOpen = false;
+    stopLoop();
     viewer.hidden = true;
     document.documentElement.classList.remove("viewer-on");
     if (fromUi && history.state && history.state.sarwxViewer) history.back();

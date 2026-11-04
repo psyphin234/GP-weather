@@ -260,6 +260,8 @@ html.viewer-on, html.viewer-on body { overflow: hidden; }
 }
 .viewer-title { font-weight: 600; flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .viewer-tip { color: var(--text-muted); font-size: 0.75rem; white-space: nowrap; }
+.viewer-frame { flex: 0 0 auto; color: var(--text-muted); font-size: 0.75rem; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.viewer-play { font-size: 0.9rem; }
 .viewer-close {
   flex: 0 0 auto; width: 44px; height: 44px; border-radius: 50%; border: 1px solid var(--border);
   background: var(--surface-2); color: var(--text); font-size: 1.2rem; cursor: pointer;

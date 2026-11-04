@@ -251,6 +251,22 @@
   eq(fw({ dataAt: NOW - 5 * MIN, lastAttempt: NOW - 5 * MIN, failures: 0, force: true }), (C.MIN_MANUAL_MIN - 5) * MIN, "Refresh button with data: manual minimum");
   eq(fw({ dataAt: 0, lastAttempt: NOW - 1 * MIN, failures: 0, force: true }), 0, "Refresh button with no data: allowed");
 
+  // ---------------------------------------------------------------- radar loop frames
+  var LF = window.SARWX_REFRESH.loopFrames, L = C.LOOP;
+  function ago(m) { return NOW - m * MIN; }
+  eq(JSON.stringify(LF([], NOW, L)), "[]", "loop: no saved copies, no older frames");
+  eq(JSON.stringify(LF([ago(0.1)], NOW, L)), "[]", "loop: the copy of the image on screen isn't used twice");
+  eq(JSON.stringify(LF([ago(0.1), ago(15), ago(30), ago(45)], NOW, L)), JSON.stringify([ago(30), ago(15)]),
+     "loop: 15-min reloads give the two before the one on screen, oldest first");
+  eq(JSON.stringify(LF([ago(45), ago(15), ago(30)], NOW, L)), JSON.stringify([ago(30), ago(15)]), "loop: order of the saved list doesn't matter");
+  eq(JSON.stringify(LF([ago(4), ago(12), ago(16), ago(25)], NOW, L)), JSON.stringify([ago(25), ago(12)]),
+     "loop: copies under " + L.gapMin + " min apart are skipped (quick Refresh presses)");
+  eq(JSON.stringify(LF([ago(20), ago(L.maxAgeMin + 5)], NOW, L)), JSON.stringify([ago(20)]),
+     "loop: copies over " + L.maxAgeMin + " min older than the one on screen are left out (page was closed)");
+  eq(JSON.stringify(LF([ago(15), "x", null], NOW, L)), JSON.stringify([ago(15)]), "loop: junk in the saved list is ignored");
+  report(L.frames === 3 && L.keep >= L.frames && L.maxAgeMin >= (L.frames - 1) * C.REFRESH_MIN,
+         "loop: 3 frames, enough copies kept, age limit covers 15-min reloads");
+
   // config sanity
   var ids = {};
   C.LOCATIONS.forEach(function (l) { ids[l.id] = (ids[l.id] || 0) + 1; });

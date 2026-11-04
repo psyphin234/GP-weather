@@ -8,7 +8,10 @@
      picture from an error page: the page says which ones really loaded
      (postMessage {keep, as}) and only those are copied to SAVED.
    - <scope>/saved-image/<file>: answered from SAVED (404 if there is none).
-     SAVED also holds <file>.json = {at: ms} (when it was saved), read by the page. */
+     SAVED also holds <file>.json = {at: ms} (when it was saved), read by the page.
+   - Looped radar images (message has frames: {keep, maxAgeMin}): also kept as
+     <file>.f<at>, with <file>.frames.json = [at, ...] newest first, trimmed to
+     `keep` copies and maxAgeMin minutes. The page picks which ones it loops. */
 "use strict";
 var PENDING = "sarwx-img-pending-v1", SAVED = "sarwx-img-saved-v1";
 var FW = "https://www.flywatch.com/api/weather/images/";
@@ -58,13 +61,33 @@ self.addEventListener("message", function (e) {
   }).then(function (p) {
     return p.match(d.keep).then(function (r) {
       if (!r) return;
+      var at = Date.now(), frame = d.frames ? r.clone() : null;
       return caches.open(SAVED).then(function (s) {
         return s.put(d.as, r).then(function () {
           // when it was saved, for the page's "Saved copy from ..." line
-          return s.put(d.as + ".json", new Response(JSON.stringify({ at: Date.now() }),
-                                                    { headers: { "Content-Type": "application/json" } }));
-        });
+          return s.put(d.as + ".json", json({ at: at }));
+        }).then(function () { if (frame) return addFrame(s, d.as, frame, at, d.frames); });
       }).then(function () { return p.delete(d.keep); });
     });
   }).catch(function () {}));
 });
+
+function json(v) { return new Response(JSON.stringify(v), { headers: { "Content-Type": "application/json" } }); }
+
+// one more copy for the full-screen loop; drop the ones past keep / maxAgeMin
+function addFrame(s, as, res, at, f) {
+  var idx = as + ".frames.json", keep = Math.min(10, Math.max(1, +f.keep || 1)),
+      maxAge = (+f.maxAgeMin || 90) * 60000;
+  return s.match(idx).then(function (r) { return r ? r.json() : []; }).catch(function () { return []; })
+    .then(function (ats) {
+      ats = (Array.isArray(ats) ? ats : []).filter(function (t) { return typeof t === "number" && t !== at; });
+      ats.unshift(at);
+      var kept = ats.filter(function (t, i) { return i < keep && t >= at - maxAge; });
+      return s.put(as + ".f" + at, res).then(function () {
+        return s.put(idx, json(kept));
+      }).then(function () {
+        return Promise.all(ats.filter(function (t) { return kept.indexOf(t) < 0; })
+                              .map(function (t) { return s.delete(as + ".f" + t); }));
+      });
+    });
+}
