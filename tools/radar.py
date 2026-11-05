@@ -184,11 +184,20 @@ def find_centre(rgb):
                 got.append(sum(pair) / 2)
         return float(np.mean(got)) if len(got) >= 2 else None
 
+    def axis_mid(counts, c):
+        # the axis line is 1-2 px wide: the middle of its strong columns/rows
+        near = [i for i in (c - 1, c, c + 1) if counts[i] >= counts[c] / 2]
+        return float(np.mean(near)) + 0.5
+
+    ax = axis_mid(g.sum(axis=0), cx)
+    ay = axis_mid(g.sum(axis=1), cy - 55) + 55
     mx = mid(np.all(rgb[cy - 2, :612] == AXIS, axis=1), cx)
     my = mid(np.all(rgb[:665, cx - 2] == AXIS, axis=1), cy)
-    if mx is None or my is None or abs(mx - cx - 0.5) > 2 or abs(my - cy - 0.5) > 2:
+    # rings confirm the axes; when heavy echo hides the rings (Irene, 2026-11-05
+    # 20:05 UTC) go by the axes alone, which agree with the rings to 0.5 px
+    if (mx is not None and abs(mx - ax) > 2) or (my is not None and abs(my - ay) > 2):
         return None
-    return mx, my
+    return (mx if mx is not None else ax), (my if my is not None else ay)
 
 
 def echo_levels(rgb):
@@ -285,6 +294,25 @@ def read_radar(b):
     return rgb, c, t
 
 
+def place_label(region, taken, lw, lh, lx0, ly0, mx, my):
+    """Anchor point for an lw x lh label (its box starts lx0, ly0 from the anchor):
+    the box wholly inside region, covering as little of taken (town names, radar
+    marks) as possible, then as near (mx, my) as possible. Falls back to (mx, my)."""
+    def sums(m):  # box sums for every top-left corner, via an integral image
+        s = np.pad(m.astype(np.int32).cumsum(0).cumsum(1), ((1, 0), (1, 0)))
+        return s[lh:, lw:] - s[:-lh, lw:] - s[lh:, :-lw] + s[:-lh, :-lw]
+    if region.shape[0] <= lh or region.shape[1] <= lw:
+        return mx, my
+    inside = sums(region) == lw * lh
+    if not inside.any():
+        return mx, my
+    ys, xs = np.mgrid[0:inside.shape[0], 0:inside.shape[1]]
+    dist = np.hypot(xs + lw / 2 - (mx + lx0 + lw / 2), ys + lh / 2 - (my + ly0 + lh / 2))
+    score = np.where(inside, sums(taken) * 1e4 + dist, np.inf)
+    y, x = np.unravel_index(np.argmin(score), score.shape)
+    return float(x - lx0), float(y - ly0)
+
+
 def build_mosaic(sources, now_ms):
     """sources: [{file, name, lat, lon, cal, bytes or None}] -> (PIL image, radar
     states for the caption and frames.json)."""
@@ -367,21 +395,37 @@ def build_mosaic(sources, now_ms):
         return float(x) - X_KM[0], Y_KM[0] - float(y) + HEAD
 
     f_town, f_old, f_small = font(13), font(44), font(15)
+    taken_px = np.zeros((H + HEAD, W), bool)  # town names and radar marks: OLD labels keep off them
+
+    def block(box, pad=0):
+        x0, y0, x1, y1 = (int(round(v)) for v in box)
+        taken_px[max(y0 - pad, 0):max(y1 + pad, 0), max(x0 - pad, 0):max(x1 + pad, 0)] = True
+
     for name, lat, lon in TOWNS:
         px, py = at(lat, lon)
         if 0 <= px < W and HEAD <= py < HEAD + H:
             d.ellipse((px - 2.5, py - 2.5, px + 2.5, py + 2.5), fill=(20, 20, 20))
             d.text((px + 5, py - 8), name, fill=(20, 20, 20), font=f_town, stroke_width=2, stroke_fill=(255, 255, 255))
+            block((px - 3, py - 3, px + 3, py + 3), 3)
+            block(d.textbbox((px + 5, py - 8), name, font=f_town, stroke_width=2), 3)
     for s in used:  # sites of the radars drawn
         px, py = at(s["lat"], s["lon"])
         if 0 <= px < W and HEAD <= py < HEAD + H:
             d.polygon([(px, py - 6), (px - 5, py + 4), (px + 5, py + 4)], fill=(0, 70, 160), outline=(255, 255, 255))
+            block((px - 6, py - 7, px + 6, py + 5), 3)
     for u, region in old_shown:
+        sub = u["name"] + " " + sast(u["t"], True, now_ms)
+        # label box around its anchor point (cx, cy): "OLD" above, name + time below
+        b1 = d.textbbox((0, -12), "OLD", font=f_old, anchor="mm", stroke_width=3)
+        b2 = d.textbbox((0, 22), sub, font=f_small, anchor="mm", stroke_width=2)
+        lx0, ly0 = int(min(b1[0], b2[0])) - 4, int(min(b1[1], b2[1])) - 4
+        lw, lh = int(max(b1[2], b2[2])) + 4 - lx0, int(max(b1[3], b2[3])) + 4 - ly0
         rr, cc = np.where(region)
-        cy, cx = float(rr.mean()) + HEAD, float(cc.mean())
+        mx, my = float(cc.mean()), float(rr.mean()) + HEAD
+        cx, cy = place_label(np.vstack([np.zeros((HEAD, W), bool), region]), taken_px, lw, lh, lx0, ly0, mx, my)
         d.text((cx, cy - 12), "OLD", fill=(200, 0, 0), font=f_old, anchor="mm", stroke_width=3, stroke_fill=(255, 255, 255))
-        d.text((cx, cy + 22), u["name"] + " " + sast(u["t"], True, now_ms), fill=(200, 0, 0), font=f_small,
-               anchor="mm", stroke_width=2, stroke_fill=(255, 255, 255))
+        d.text((cx, cy + 22), sub, fill=(200, 0, 0), font=f_small, anchor="mm", stroke_width=2, stroke_fill=(255, 255, 255))
+        block((cx + lx0, cy + ly0, cx + lx0 + lw, cy + ly0 + lh))
 
     # caption: newest current time, then every radar's state
     fresh_t = [st["t"] for st in states if st["state"] == "ok"]
