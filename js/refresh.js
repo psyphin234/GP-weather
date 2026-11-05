@@ -38,5 +38,25 @@
     return picked.reverse();
   }
 
-  window.SARWX_REFRESH = { fetchWait: fetchWait, loopFrames: loopFrames };
+  /* The loop from the frames GitHub Actions keeps (radar/frames.json, one entry per
+     image: { checked, frames: [{ f, at, t }] }; at = when first fetched, t = time
+     printed on it or null). Drops frames fetched more than maxAgeMin ago. For a
+     FlyWatch image the picture on screen came straight from FlyWatch and may be
+     newer than the last run: it's added at the end ({ f: null }) if it was loaded
+     at least gapMin after that run checked. Returns up to `frames`, oldest first. */
+  function serverLoop(srv, shownAt, now, L, ownImage) {
+    if (!srv || !Array.isArray(srv.frames)) return [];
+    var out = srv.frames.filter(function (x) {
+      return x && typeof x.f === "string" && /^[\w.-]+$/.test(x.f) && typeof x.at === "number" &&
+             x.at >= now - L.maxAgeMin * MIN && x.at <= now + 5 * MIN;
+    }).sort(function (a, b) { return a.at - b.at; }).map(function (x) {
+      return { f: x.f, at: x.at, t: typeof x.t === "number" ? x.t : null };
+    });
+    if (!ownImage && shownAt && typeof srv.checked === "number" && shownAt >= srv.checked + L.gapMin * MIN) {
+      out.push({ f: null, at: shownAt, t: null });
+    }
+    return out.slice(-L.frames);
+  }
+
+  window.SARWX_REFRESH = { fetchWait: fetchWait, loopFrames: loopFrames, serverLoop: serverLoop };
 })();

@@ -1,0 +1,48 @@
+# Publishes the site, plus radar frames and the Gauteng radar mosaic (tools/radar.py),
+# on every push and every 15 minutes. Pages source must be "GitHub Actions"
+# (Settings > Pages; switched from "Deploy from a branch" on 2026-11-05).
+# Nothing is committed: each run reads the last run's frames back from the live
+# site. GitHub runs schedules late at busy times (often 5-30 min) and pauses a
+# schedule after 60 days without a push to the repo (it emails; re-enable under
+# Actions > this workflow).
+name: Pages + radar
+
+on:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "4,19,34,49 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v7
+      - name: Site files (everything tracked except the workflow and tools)
+        run: |
+          mkdir _site
+          git ls-files -z | grep -zv -e '^\.github/' -e '^tools/' | xargs -0 cp --parents -t _site
+      - name: Radar frames and mosaic
+        run: |
+          pip install --quiet pillow numpy
+          python tools/radar.py _site
+      - uses: actions/configure-pages@v6
+      - uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+      - id: deploy
+        uses: actions/deploy-pages@v5

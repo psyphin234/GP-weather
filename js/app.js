@@ -512,7 +512,7 @@
 
   function figure(x) {
     var file = x.url.split("/").pop();
-    var slot = { url: x.url, title: x.title, day: x.day || null, loop: !!x.loop, img: null, savedAt: null,
+    var slot = { url: x.url, title: x.title, day: x.day || null, loop: !!x.loop, own: !!x.own, img: null, savedAt: null,
                  shownAt: 0, tries: 0, timer: null, savedUrl: new URL("saved-image/" + file, location.href).href };
     slot.msg = el("p", { class: "small warn", hidden: true });
     slot.btn = el("button", { type: "button", class: "img-open", hidden: true, "aria-label": "Show " + x.title + " full screen" },
@@ -521,7 +521,7 @@
     slot.w = x.w; slot.h = x.h;
     slot.btn.addEventListener("click", function () { if (slot.img) openViewer(slot); });
     shownImgs.push(slot);
-    return el("figure", { class: "chart" }, [
+    return el("figure", { class: x.own ? "chart wide" : "chart" }, [
       el("figcaption", null, [el("strong", { text: x.title })]),
       slot.placeholder, slot.btn, slot.msg
     ]);
@@ -687,26 +687,55 @@
 
   /* Load the saved copies that go before the one on screen (sw.js keeps them,
      R.loopFrames picks), then loop. Fewer than two frames: no loop. */
-  function startLoop(slot, src) {
-    if (!sw() || !window.caches || !slot.shownAt) return;
-    var token = {};
-    loop = { token: token, frames: null, i: 0, timer: null, paused: false };
-    caches.open(SAVED_CACHE).then(function (c) { return c.match(slot.savedUrl + ".frames.json"); })
+  function preload(list) { // [{ src, at, t }] -> the ones that loaded
+    return Promise.all(list.map(function (x) {
+      return new Promise(function (ok) {
+        var im = new Image();
+        im.onload = function () { ok(x); };
+        im.onerror = function () { ok(null); };
+        im.src = x.src;
+      });
+    })).then(function (got) { return got.filter(Boolean); });
+  }
+
+  // frames GitHub Actions kept (radar/frames.json), or [] if unavailable
+  function serverFrames(slot, src) {
+    if (!window.fetch) return Promise.resolve([]);
+    var ctrl = window.AbortController ? new AbortController() : null;
+    var timer = setTimeout(function () { if (ctrl) ctrl.abort(); }, 8000);
+    return fetch(C.FRAMES_URL + "?t=" + Math.floor(Date.now() / 60000), ctrl ? { signal: ctrl.signal } : {})
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function (j) {
+        var key = slot.url.split("/").pop();
+        var list = R.serverLoop(j && j.images && j.images[key], slot.shownAt, Date.now(), C.LOOP, slot.own);
+        return preload(list.map(function (x) {
+          return { src: x.f ? new URL("radar/" + x.f, location.href).href : src, at: x.at, t: x.t };
+        }));
+      })
+      .catch(function () { return []; })
+      .then(function (got) { clearTimeout(timer); return got; });
+  }
+
+  // copies this phone kept as it reloaded (sw.js), plus the one on screen
+  function deviceFrames(slot, src) {
+    if (!sw() || !window.caches || !slot.shownAt) return Promise.resolve([]);
+    return caches.open(SAVED_CACHE).then(function (c) { return c.match(slot.savedUrl + ".frames.json"); })
       .then(function (r) { return r ? r.json() : []; })
       .then(function (ats) {
         var older = R.loopFrames(Array.isArray(ats) ? ats : [], slot.shownAt, C.LOOP);
-        return Promise.all(older.map(function (t) {
-          return new Promise(function (ok) {
-            var im = new Image();
-            im.onload = function () { ok({ src: im.src, at: t }); };
-            im.onerror = function () { ok(null); };
-            im.src = slot.savedUrl + ".f" + t;
-          });
-        }));
+        return preload(older.map(function (t) { return { src: slot.savedUrl + ".f" + t, at: t, t: null }; }));
       })
-      .then(function (got) {
+      .then(function (got) { return got.concat([{ src: src, at: slot.shownAt, t: null }]); })
+      .catch(function () { return []; });
+  }
+
+  function startLoop(slot, src) {
+    var token = {};
+    loop = { token: token, frames: null, i: 0, timer: null, paused: false };
+    serverFrames(slot, src)
+      .then(function (got) { return got.length >= 2 ? got : deviceFrames(slot, src); })
+      .then(function (frames) {
         if (!loop || loop.token !== token) return; // closed or reopened meanwhile
-        var frames = got.filter(Boolean).concat([{ src: src, at: slot.shownAt }]);
         if (frames.length < 2) { loop = null; return; }
         loop.frames = frames;
         loop.i = 0; // start from the oldest
@@ -717,11 +746,12 @@
   }
 
   function showFrame() {
-    var f = loop.frames[loop.i], at = new Date(f.at),
+    var f = loop.frames[loop.i], at = new Date(f.t || f.at),
         today = fmtDay.format(at) === fmtDay.format(new Date());
     viewerImg.src = f.src;
-    // when this phone fetched it, not the image's own time (unreadable: no CORS)
-    viewerFrame.textContent = "fetched " + (today ? "" : fmtDay.format(at) + " ") + fmtHM.format(at) +
+    // t: the time printed on the radar image (read by tools/radar.py); without it,
+    // when it was fetched (the page itself can't read the image: no CORS)
+    viewerFrame.textContent = (f.t ? "radar " : "fetched ") + (today ? "" : fmtDay.format(at) + " ") + fmtHM.format(at) +
                               " \u00b7 " + (loop.i + 1) + "/" + loop.frames.length;
   }
 

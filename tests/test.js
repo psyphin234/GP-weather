@@ -264,6 +264,22 @@
   eq(JSON.stringify(LF([ago(20), ago(L.maxAgeMin + 5)], NOW, L)), JSON.stringify([ago(20)]),
      "loop: copies over " + L.maxAgeMin + " min older than the one on screen are left out (page was closed)");
   eq(JSON.stringify(LF([ago(15), "x", null], NOW, L)), JSON.stringify([ago(15)]), "loop: junk in the saved list is ignored");
+  var SL = window.SARWX_REFRESH.serverLoop;
+  function fr(m, t) { return { f: "IRS50-" + ago(m) + ".gif", at: ago(m), t: t === undefined ? ago(m + 2) : t, h: "x" }; }
+  function names(list) { return list.map(function (x) { return x.f === null ? "screen" : Math.round((NOW - x.at) / MIN) + "m"; }).join(","); }
+  eq(names(SL({ checked: ago(1), frames: [fr(30), fr(15), fr(1)] }, ago(0.5), NOW, L)), "30m,15m,1m",
+     "server loop: the three frames GitHub kept, oldest first");
+  eq(names(SL({ checked: ago(1), frames: [fr(1), fr(30), fr(15)] }, ago(0.5), NOW, L)), "30m,15m,1m", "server loop: list order doesn't matter");
+  eq(SL({ checked: ago(1), frames: [fr(1)] }, ago(0.5), NOW, L)[0].t, ago(3), "server loop: keeps the time printed on the image");
+  eq(names(SL({ checked: ago(14), frames: [fr(44), fr(29), fr(14)] }, ago(0.5), NOW, L)), "29m,14m,screen",
+     "server loop: the FlyWatch image on screen goes last when loaded " + L.gapMin + "+ min after the last run");
+  eq(names(SL({ checked: ago(14), frames: [fr(44), fr(29), fr(14)] }, ago(0.5), NOW, L, true)), "44m,29m,14m",
+     "server loop: not for the site's own mosaic (the image on screen is the newest frame)");
+  eq(names(SL({ checked: ago(5), frames: [fr(200), fr(120), fr(5)] }, ago(0.5), NOW, L)), "5m",
+     "server loop: frames fetched over " + L.maxAgeMin + " min ago are left out");
+  eq(names(SL({ checked: ago(5), frames: [{ f: "../x.gif", at: ago(10) }, { f: "a.gif", at: "x" }, null, fr(5)] }, 0, NOW, L)), "5m",
+     "server loop: bad entries are ignored (no paths, numbers only)");
+  eq(SL(undefined, 0, NOW, L).length, 0, "server loop: no entry, no frames");
   report(L.frames === 3 && L.keep >= L.frames && L.maxAgeMin >= (L.frames - 1) * C.REFRESH_MIN,
          "loop: 3 frames, enough copies kept, age limit covers 15-min reloads");
 
@@ -276,7 +292,8 @@
   report(C.RADAR_STALE_MIN >= 10 && C.RADAR_STALE_MIN <= 120, "radar stale cutoff is a sensible number of minutes");
   report(C.REFRESH_MIN >= 10 && C.REFRESH_MIN <= 15 && C.MIN_MANUAL_MIN >= 10, "refresh interval is 10–15 min, manual at least 10");
   var allUrls = [].concat(C.IMAGES, [{ url: C.RADAR_SOURCE_PAGE }]).map(function (x) { return x.url; }).filter(Boolean);
-  report(allUrls.every(function (u) { return /^https:\/\//.test(u); }), "all links and images are https");
+  report(allUrls.every(function (u) { return /^https:\/\//.test(u) || /^[\w-]+\/[\w.-]+$/.test(u); }), "all links and images are https (or this site's own files)");
+  report(C.IMAGES.every(function (x) { return !!x.own === !/^https:/.test(x.url); }), "images marked own are exactly the site's own files");
   report(allUrls.every(function (u) { return u.indexOf("aviation.weathersa.co.za") < 0; }), "nothing points at the SAWS aviation site (owner's rule)");
 
   $("summary").textContent = fail ? (fail + " FAILED, " + pass + " passed") : ("ALL PASSED (" + pass + ")");

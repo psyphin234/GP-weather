@@ -3,8 +3,9 @@
 
    It touches only two kinds of request; everything else goes straight to the
    network as if it weren't here (so the page itself is never served stale):
-   - FlyWatch images: passed through unchanged (no extra requests), and the
-     response is kept in PENDING. It's opaque (no CORS), so the worker can't tell a
+   - FlyWatch images, and this site's own radar/mosaic.png (built every 15 min by
+     tools/radar.py on GitHub Actions): passed through unchanged (no extra
+     requests), and the response is kept in PENDING. It's opaque (no CORS), so the worker can't tell a
      picture from an error page: the page says which ones really loaded
      (postMessage {keep, as}) and only those are copied to SAVED.
    - <scope>/saved-image/<file>: answered from SAVED (404 if there is none).
@@ -16,6 +17,7 @@
 var PENDING = "sarwx-img-pending-v1", SAVED = "sarwx-img-saved-v1";
 var FW = "https://www.flywatch.com/api/weather/images/";
 var SAVED_PATH = new URL("saved-image/", self.registration.scope).href;
+var OWN = [new URL("radar/mosaic.png", self.registration.scope).href]; // only these: not the loop frames
 var inflight = {}; // request URL -> promise of its PENDING write
 
 self.addEventListener("install", function () { self.skipWaiting(); });
@@ -32,7 +34,7 @@ function base(url) { return url.split("?")[0]; }
 self.addEventListener("fetch", function (e) {
   var url = e.request.url;
   if (e.request.method !== "GET") return;
-  if (url.indexOf(FW) === 0) {
+  if (url.indexOf(FW) === 0 || OWN.indexOf(base(url)) >= 0) {
     e.respondWith(fetch(e.request).then(function (res) {
       var copy = res.clone();
       var write = caches.open(PENDING).then(function (c) {

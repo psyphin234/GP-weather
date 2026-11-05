@@ -62,13 +62,16 @@
   //   w, h   the image's size in pixels (reserves the space while it loads)
   //   day    "today" / "tomorrow": the chart is for that day only, so a saved copy
   //          from an earlier day says it isn't today's / tomorrow's chart
-  //   loop   true: full screen loops this phone's recent copies (see LOOP below)
+  //   loop   true: full screen loops recent copies (see LOOP below)
+  //   own    true: built by this site (tools/radar.py on GitHub Actions), not FlyWatch
   var FW = "https://www.flywatch.com/api/weather/images/individual/";
   var IMAGES = [
     { panel: "storm", title: "SAWS TS probability today",    url: FW + "tsprob_d1.gif", w: 800, h: 600, day: "today" },
     { panel: "storm", title: "SAWS TS probability tomorrow", url: FW + "tsprob_d2.gif", w: 800, h: 600, day: "tomorrow" },
     { panel: "radar", title: "Irene 50 km",  url: FW + "IRS50.gif", w: 750, h: 691, loop: true },
-    { panel: "radar", title: "Irene 300 km", url: FW + "IRS.gif",   w: 750, h: 691, loop: true }
+    { panel: "radar", title: "Irene 300 km", url: FW + "IRS.gif",   w: 750, h: 691, loop: true },
+    // every SAWS radar around Gauteng stitched together; old ones outlined "OLD"
+    { panel: "radar", title: "Radar mosaic", url: "radar/mosaic.png", w: 800, h: 906, loop: true, own: true }
   ];
   var RADAR_SOURCE_PAGE = "https://www.flywatch.com/tracking/weather/radar";
 
@@ -76,14 +79,16 @@
   // (The page can't read the image time itself; the reader compares.)
   var RADAR_STALE_MIN = 30;
 
-  // Full-screen radar loop (owner, 2026-11-04). FlyWatch only has the latest frame
-  // (no past frames listed, checked 2026-11-04), so each phone keeps its own copies
-  // as it reloads (sw.js) and loops up to `frames` of them, at least `gapMin` apart,
-  // none more than `maxAgeMin` older than the one on screen. The page can't read the
-  // time printed on an image, so a repeated frame (FlyWatch stale) can't be skipped.
+  // Full-screen radar loop (owner, 2026-11-04/05). FlyWatch only has the latest
+  // frame, so GitHub Actions fetches the radar every 15 min (tools/radar.py) and
+  // keeps the last 3 different frames, listed in FRAMES_URL; the loop uses those
+  // (none older than `maxAgeMin`). If that list can't be had, it falls back to the
+  // copies this phone kept as it reloaded (sw.js): at least `gapMin` apart, none
+  // more than `maxAgeMin` older than the one on screen.
   //   keep     copies kept per image on the phone
   //   frameMs  time per frame; holdMs on the newest before it starts again
   var LOOP = { frames: 3, gapMin: 10, maxAgeMin: 90, keep: 6, frameMs: 800, holdMs: 1800 };
+  var FRAMES_URL = "radar/frames.json";
 
   window.SARWX_CONFIG = {
     LOCATIONS: LOCATIONS,
@@ -97,6 +102,7 @@
     RADAR_SOURCE_PAGE: RADAR_SOURCE_PAGE,
     RADAR_STALE_MIN: RADAR_STALE_MIN,
     LOOP: LOOP,
+    FRAMES_URL: FRAMES_URL,
     TIMEZONE: "Africa/Johannesburg"
   };
 })();

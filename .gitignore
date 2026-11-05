@@ -2,3 +2,4 @@ Thumbs.db
 desktop.ini
 *.tmp.html
 CLAUDE.md
+__pycache__/

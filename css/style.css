@@ -230,6 +230,7 @@ table.astro td { font-variant-numeric: tabular-nums; font-weight: 600; }
 .chart-grid { display: grid; gap: 12px; grid-template-columns: minmax(0, 1fr); }
 @media (min-width: 720px) { .chart-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 figure.chart { margin: 0; }
+figure.chart.wide { grid-column: 1 / -1; } /* the radar mosaic: a full row when two fit side by side */
 #storm-images .chart-grid { margin-top: 12px; }
 figure.chart figcaption { margin-bottom: 4px; }
 .img-open {
