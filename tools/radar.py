@@ -527,11 +527,25 @@ def main(argv):
                 os.remove(p)
         return frames[-LOOP_KEEP:]
 
-    images, fetched = {}, {}
+    # FlyWatch sometimes answers 404 for a few seconds, for one image or all of
+    # them (seen 2026-11-06: Irene 404 at 10:28, everything 404 at 03:35, fine
+    # again within a minute): try failures again after 20 s and 60 s more
+    want = LOOPED + [r[0] for r in RADARS if r[0] not in LOOPED]
+    fetched = {}
+    for wait in (0, 20, 60):
+        todo = [f for f in want if not is_image(fetched.get(f))]
+        if not todo or (wait and local):
+            break
+        if wait:
+            print("retrying in %d s:" % wait, " ".join(todo))
+            time.sleep(wait)
+        for f in todo:
+            fetched[f] = src(f)
+
+    images = {}
     for key in LOOPED:
         frames = carry(key)
-        b = src(key)
-        fetched[key] = b
+        b = fetched[key]
         entry = {"frames": frames, "checked": (prev.get(key) or {}).get("checked")}
         if is_image(b):
             r = read_radar(b) if key != "IRS50.gif" else None
@@ -543,7 +557,7 @@ def main(argv):
 
     sources = []
     for f, name, lat, lon, cal in RADARS:
-        b = fetched.get(f) or src(f)
+        b = fetched.get(f)
         sources.append({"file": f, "name": name, "lat": lat, "lon": lon, "cal": cal, "bytes": b if is_image(b) else None})
     frames = carry("mosaic.png")
     entry = {"frames": frames, "checked": (prev.get("mosaic.png") or {}).get("checked")}
