@@ -471,6 +471,67 @@ def is_image(b):
     return bool(b) and (b[:4] == b"GIF8" or b[:8] == b"\x89PNG\r\n\x1a\n") and len(b) > 1000
 
 
+# Radars placed by guess (calibrated=False) are fitted by the job itself the
+# first time FlyWatch has a real image of them (owner, 2026-11-06: "calibrate
+# bethlehem and skukuza when they come back"): their roads against these
+# calibrated neighbours (tools/calibrate.py fit()). Roads don't go stale, so an
+# old reference image is fine. The result is kept in radar/calibration.json on
+# the site (carried from run to run like the frames) with the image used
+# (radar/cal-<file>); copy it into RADARS when convenient.
+CAL_REFS = {"BLM.gif": ["IRS.gif", "BLS.gif"], "SZ.gif": ["EO.gif", "PP.gif"]}
+CAL_SPAN = 0.3       # search +-0.3 deg (~30 km) around the guess
+CAL_MIN = 0.9        # share of its roads that must land on the reference's
+CAL_AGREE_KM = 5     # two references must agree this well; one alone needs 0.95
+
+
+def auto_calibrate(f, guess, imgs, pos):
+    """f's position from its roads vs its CAL_REFS, or None. imgs: file ->
+    bytes; pos: file -> (lat, lon) of calibrated radars."""
+    import calibrate  # noqa: E402  (imports this module; only needed here)
+    rgb = lambda b: np.array(Image.open(io.BytesIO(b)).convert("RGB"))
+    try:
+        new = rgb(imgs[f])
+    except Exception:
+        return None
+    cb = find_centre(new)
+    if cb is None:
+        return None
+    mb = np.logical_or(*map_layer(new))
+    got = []
+    for ref in CAL_REFS.get(f, []):
+        if ref not in pos or not is_image(imgs.get(ref)):
+            continue
+        ra = rgb(imgs[ref])
+        ca = find_centre(ra)
+        if ca is None:
+            continue
+        r = calibrate.fit((ca, np.logical_or(*map_layer(ra))) + tuple(pos[ref]), (cb, mb) + tuple(guess), CAL_SPAN)
+        if r is None:
+            continue
+        s0, sc, lat, lon = r
+        print("  calibrate %s vs %s: %.4f, %.4f, match %.2f -> %.2f" % (f, ref, lat, lon, s0, sc))
+        if sc >= CAL_MIN:
+            got.append({"lat": round(float(lat), 4), "lon": round(float(lon), 4), "match": round(float(sc), 3), "ref": ref})
+    if not got:
+        return None
+    # the first reference listed wins (Irene for Bethlehem: every road fit is
+    # relative to Irene; Bloemfontein was placed by borders, ~2 km different)
+    if len(got) >= 2:
+        a, b = got[:2]
+        km = math.hypot((a["lat"] - b["lat"]) * 111.2,
+                        (a["lon"] - b["lon"]) * 111.2 * math.cos(math.radians(a["lat"])))
+        if km > CAL_AGREE_KM:
+            print("  calibrate %s: references disagree by %.1f km, not used" % (f, km))
+            return None
+        best = dict(a, also=b["ref"], agree_km=round(km, 1))
+    elif got[0]["match"] >= 0.95:
+        best = got[0]
+    else:
+        return None
+    best["guess"] = list(guess)
+    return best
+
+
 def main(argv):
     out = os.path.join(argv[0], "radar")
     os.makedirs(out, exist_ok=True)
@@ -555,9 +616,41 @@ def main(argv):
         images[key] = entry
         print(key, "frames:", len(entry["frames"]))
 
+    # positions found by the job for radars RADARS only guesses (see CAL_REFS)
+    calib = {}
+    cj = prev_file("calibration.json")
+    if cj:
+        try:
+            calib = {k: v for k, v in json.loads(cj).items()
+                     if k in CAL_REFS and isinstance(v, dict) and isinstance(v.get("f"), str)
+                     and all(isinstance(v.get(n), (int, float)) for n in ("lat", "lon"))}
+        except ValueError:
+            calib = {}
+    for k, v in list(calib.items()):  # keep the image it was fitted on
+        b = prev_file(v["f"]) if "/" not in v["f"] and not v["f"].startswith(".") else None
+        if is_image(b):
+            with open(os.path.join(out, v["f"]), "wb") as fh:
+                fh.write(b)
+    known = {f: (lat, lon) for f, _, lat, lon, cal in RADARS if cal}
+    for f, name, lat, lon, cal in RADARS:
+        if cal or f in calib or not is_image(fetched.get(f)) or read_radar(fetched[f]) is None:
+            continue
+        r = auto_calibrate(f, (lat, lon), fetched, known)
+        if r:
+            r["f"] = "cal-" + f
+            r["at"] = now
+            with open(os.path.join(out, r["f"]), "wb") as fh:
+                fh.write(fetched[f])
+            calib[f] = r
+            print("  calibrated %s: %s" % (name, r))
+    with open(os.path.join(out, "calibration.json"), "w") as fh:
+        json.dump(calib, fh, separators=(",", ":"))
+
     sources = []
     for f, name, lat, lon, cal in RADARS:
         b = fetched.get(f)
+        if not cal and f in calib:
+            lat, lon, cal = calib[f]["lat"], calib[f]["lon"], True
         sources.append({"file": f, "name": name, "lat": lat, "lon": lon, "cal": cal, "bytes": b if is_image(b) else None})
     frames = carry("mosaic.png")
     entry = {"frames": frames, "checked": (prev.get("mosaic.png") or {}).get("checked")}
