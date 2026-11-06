@@ -2,16 +2,21 @@
 # on every push and every 15 minutes. Pages source must be "GitHub Actions"
 # (Settings > Pages; switched from "Deploy from a branch" on 2026-11-05).
 # Nothing is committed: each run reads the last run's frames back from the live
-# site. GitHub runs schedules late at busy times (often 5-30 min) and pauses a
-# schedule after 60 days without a push to the repo (it emails; re-enable under
-# Actions > this workflow).
+# site.
+# The 15-min runs come from cron-job.org (owner's account, set up 2026-11-06):
+# POST .../actions/workflows/pages.yml/dispatches {"ref":"main"} at :00/:15/:30/:45
+# with a fine-grained token (this repo only, Actions read/write). If that token
+# expires the runs stop and cron-job.org emails a failure. GitHub's own schedule
+# below is only an hourly backup: it ran 2 times in 17 h when set to every 15 min
+# (2026-11-05/06), and it pauses after 60 days without a push (re-enable under
+# Actions > this workflow; the cron-job.org runs don't pause).
 name: Pages + radar
 
 on:
   push:
     branches: [main]
   schedule:
-    - cron: "7,22,37,52 * * * *"
+    - cron: "37 * * * *"
   workflow_dispatch:
 
 permissions:
