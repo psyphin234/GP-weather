@@ -654,6 +654,8 @@ def main(argv):
         sources.append({"file": f, "name": name, "lat": lat, "lon": lon, "cal": cal, "bytes": b if is_image(b) else None})
     frames = carry("mosaic.png")
     entry = {"frames": frames, "checked": (prev.get("mosaic.png") or {}).get("checked")}
+    if isinstance((prev.get("mosaic.png") or {}).get("radars"), list):  # FlyWatch down: keep last states
+        entry["radars"] = prev["mosaic.png"]["radars"]
     if any(s["bytes"] for s in sources):
         img, states = build_mosaic(sources, now)
         # a new frame only when a radar image or a radar's OLD/current state changed
