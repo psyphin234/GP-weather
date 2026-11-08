@@ -409,15 +409,61 @@
 
 
   // ---------------------------------------------------------------- 4. sun & moon
-  function moonSvg(fraction, phase) {
-    var r = 18, k = fraction, rx = Math.abs(1 - 2 * k) * r, waxing = phase < 0.5;
-    // southern hemisphere: a waxing moon is lit on the LEFT
-    var flip = waxing ? -1 : 1;
+  // the lit part of a moon of radius r centred on 0,0 (southern hemisphere view)
+  function moonLit(fraction, phase, r) {
+    var k = fraction, rx = Math.abs(1 - 2 * k) * r;
+    var flip = phase < 0.5 ? -1 : 1; // southern hemisphere: a waxing moon is lit on the LEFT
     var inner = k < 0.5 ? 0 : 1;
     var d = "M0," + (-r) + " A" + r + "," + r + " 0 0 1 0," + r + " A" + rx.toFixed(2) + "," + r + " 0 0 " + inner + " 0," + (-r) + " Z";
-    return '<svg viewBox="-20 -20 40 40" width="56" height="56" role="img" aria-label="Moon ' + Math.round(k * 100) + '% lit">' +
-      '<circle r="' + r + '" fill="#1b2547" stroke="#3a4a7a" stroke-width="1"/>' +
-      '<path d="' + d + '" fill="#f4f1d6" transform="scale(' + flip + ',1)"/></svg>';
+    return '<path d="' + d + '" fill="#f4f1d6" transform="scale(' + flip + ',1)"/>';
+  }
+
+  function moonSvg(fraction, phase) {
+    return '<svg viewBox="-20 -20 40 40" width="56" height="56" role="img" aria-label="Moon ' + Math.round(fraction * 100) + '% lit">' +
+      '<circle r="18" fill="#1b2547" stroke="#3a4a7a" stroke-width="1"/>' + moonLit(fraction, phase, 18) + '</svg>';
+  }
+
+  /* Sun compass (owner, 2026-11-08: "a compass dial ... put the sun and moon on
+     the compass where they would be so I can use their position to tell north").
+     North-up dial, true north; each body that is up sits on the rim at its
+     bearing. Turn the phone until a mark points at the real sun/moon: N then
+     points to true north. A body higher than C.SUN_COMPASS.maxAlt is drawn faded
+     (nearly overhead, its bearing can't be aimed). */
+  function compassSvg(sun, moon, ill) {
+    var R = 88, s = [], P = A.dialPoint;
+    function f(v) { return v.toFixed(1); }
+    s.push('<circle r="' + R + '" fill="#0b1330" stroke="rgba(120,170,255,0.35)" stroke-width="1.5"/>');
+    for (var b = 0; b < 360; b += 10) {
+      var major = b % 30 === 0, a = P(b, R), c = P(b, R - (b % 90 === 0 ? 11 : major ? 7 : 4));
+      s.push('<line x1="' + f(a.x) + '" y1="' + f(a.y) + '" x2="' + f(c.x) + '" y2="' + f(c.y) +
+        '" stroke="' + (major ? "#a8b7d6" : "rgba(168,183,214,0.5)") + '" stroke-width="' + (major ? 1.5 : 1) + '"/>');
+    }
+    [["N", 0, 17, "#ff5a6e"], ["E", 90, 15, "#eaf2ff"], ["S", 180, 15, "#eaf2ff"], ["W", 270, 15, "#eaf2ff"],
+     ["NE", 45, 10, "#a8b7d6"], ["SE", 135, 10, "#a8b7d6"], ["SW", 225, 10, "#a8b7d6"], ["NW", 315, 10, "#a8b7d6"]]
+      .forEach(function (t) {
+        var p = P(t[1], R - 30);
+        s.push('<text x="' + f(p.x) + '" y="' + f(p.y) + '" font-size="' + t[2] + '" font-weight="700" fill="' + t[3] +
+          '" text-anchor="middle" dominant-baseline="central">' + t[0] + '</text>');
+      });
+    var up = 0;
+    function body(pos, draw, name, r) {
+      if (pos.alt <= 0) return;
+      up++;
+      var p = P(pos.bearing, r || R), high = pos.alt > C.SUN_COMPASS.maxAlt;
+      s.push('<g opacity="' + (high ? 0.45 : 1) + '"><line x1="0" y1="0" x2="' + f(p.x) + '" y2="' + f(p.y) +
+        '" stroke="' + draw.line + '" stroke-width="2" stroke-dasharray="5 4"/>' +
+        '<g transform="translate(' + f(p.x) + ',' + f(p.y) + ')" aria-label="' + name + '">' + draw.mark + '</g></g>');
+    }
+    // a moon under 3 % lit can't be seen, so isn't drawn; one near the sun's
+    // bearing goes further in on its own line so the marks don't overlap
+    var gap = Math.abs(((moon.bearing - sun.bearing) % 360 + 540) % 360 - 180);
+    if (ill.fraction >= 0.03) body(moon, { line: "#f4f1d6", mark: '<circle r="11" fill="#1b2547" stroke="#f4f1d6" stroke-width="1.5"/>' + moonLit(ill.fraction, ill.phase, 10) }, "Moon",
+      sun.alt > 0 && gap < 18 ? R - 34 : R);
+    body(sun, { line: "#ffd23f", mark: '<circle r="13" fill="#ffd23f" stroke="#fff3b0" stroke-width="2"/>' }, "Sun");
+    s.push('<circle r="3.5" fill="#eaf2ff"/>');
+    if (!up) s.push('<text y="22" font-size="11" fill="#a8b7d6" text-anchor="middle">sun &amp; moon down</text>');
+    return '<svg class="sun-compass" viewBox="-104 -104 208 208" role="img" aria-label="Compass, north up, with the sun and moon at their bearings">' +
+      s.join("") + '</svg>';
   }
 
   function localMidnight(dayOffset) {
@@ -442,7 +488,8 @@
     function dir(b) { return Math.round(b) % 360 + "° " + W.compass(b); }
     function row(icon, name, pos, rise) {
       var where = pos.alt > 0
-        ? [el("strong", { text: dir(pos.bearing) }), " · " + Math.round(pos.alt) + "° up"]
+        ? [el("strong", { text: dir(pos.bearing) }), " · " + Math.round(pos.alt) + "° up",
+           pos.alt > C.SUN_COMPASS.maxAlt ? el("span", { class: "chip lv1", text: "too high to aim" }) : ""]
         : [el("span", { class: "muted", text: "down" }),
            rise ? " · rises " + hm(rise.t) + " at " : "", rise ? el("span", { class: "nowrap", text: dir(rise.bearing) }) : ""];
       return el("div", { class: "astro-now-row" }, [el("span", { class: "astro-now-name", text: icon + " " + name }), el("span", null, where)]);
@@ -450,12 +497,17 @@
     var sunR = A.sunTimes(new Date(today.valueOf() + 12 * 36e5), L.lat, L.lon).sunrise;
     if (!sunR || sunR <= now) sunR = A.sunTimes(new Date(today.valueOf() + 36 * 36e5), L.lat, L.lon).sunrise;
     var moonR = A.moonTimes(now, L.lat, L.lon).rise;
+    var sun = A.sunPosition(now, L.lat, L.lon), moon = A.moonPosition(now, L.lat, L.lon);
     box.textContent = "";
-    box.appendChild(el("div", { class: "astro-now-head small muted", text: "Now · bearing from true north" }));
-    box.appendChild(row("☀", "Sun", A.sunPosition(now, L.lat, L.lon),
-      sunR && { t: sunR, bearing: A.sunPosition(sunR, L.lat, L.lon).bearing }));
-    box.appendChild(row("☾", "Moon", A.moonPosition(now, L.lat, L.lon),
-      moonR && { t: moonR, bearing: A.moonPosition(moonR, L.lat, L.lon).bearing }));
+    box.appendChild(el("div", { class: "sun-compass-wrap" }, [
+      el("div", { html: compassSvg(sun, moon, A.moonIllumination(now)) }),
+      el("div", { class: "small muted", text: "Point ☀/☾ at the sun/moon → N is true north" })
+    ]));
+    box.appendChild(el("div", { class: "astro-now-rows" }, [
+      el("div", { class: "astro-now-head small muted", text: "Now · bearing from true north" }),
+      row("☀", "Sun", sun, sunR && { t: sunR, bearing: A.sunPosition(sunR, L.lat, L.lon).bearing }),
+      row("☾", "Moon", moon, moonR && { t: moonR, bearing: A.moonPosition(moonR, L.lat, L.lon).bearing })
+    ]));
   }
 
   function renderAstro() {

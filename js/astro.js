@@ -189,7 +189,15 @@
     return "Waning crescent";
   }
 
+  /* A point on a north-up dial: bearing in degrees clockwise from north, r from
+     the centre; screen y grows downwards, so north is -y. */
+  function dialPoint(bearingDeg, r) {
+    var b = bearingDeg * PI / 180;
+    return { x: r * sin(b), y: -r * cos(b) };
+  }
+
   window.SARWX_ASTRO = {
+    dialPoint: dialPoint,
     sunTimes: sunTimes,
     moonTimes: moonTimes,
     moonIllumination: moonIllumination,

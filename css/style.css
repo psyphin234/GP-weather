@@ -215,7 +215,11 @@ table.hourly tr.ts td, table.hourly tr.ts th { color: #ffd0da; background: color
   font: inherit; font-size: 0.9rem; background: var(--surface-2); color: var(--text);
   border: 1px solid var(--border); border-radius: 8px; padding: 6px 8px; max-width: 100%;
 }
-.astro-now { margin-top: 10px; display: grid; gap: 4px; font-variant-numeric: tabular-nums; }
+.astro-now { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 10px 24px; align-items: center; font-variant-numeric: tabular-nums; }
+.astro-now-rows { display: grid; gap: 4px; flex: 1 1 260px; min-width: 0; }
+.sun-compass-wrap { flex: 0 1 240px; margin: 0 auto; text-align: center; }
+.sun-compass { display: block; width: 100%; max-width: 240px; height: auto; margin: 0 auto 4px; }
+.astro-now-row .chip { margin-left: 6px; }
 .astro-now-row { display: flex; gap: 10px; align-items: baseline; }
 .astro-now-name { flex: 0 0 3.8em; }
 .astro-now-row strong, .astro-now .nowrap { white-space: nowrap; }

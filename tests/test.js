@@ -73,6 +73,14 @@
     near(m.alt - r[4], 0, 1.5, r[0] + " moon altitude vs ephem, deg");
   });
 
+  // compass dial: north up, east right, south down, west left (screen y down)
+  [[0, 0, -10], [90, 10, 0], [180, 0, 10], [270, -10, 0], [45, 7.071, -7.071]].forEach(function (r) {
+    var p = A.dialPoint(r[0], 10);
+    near(p.x, r[1], 0.001, "dial point " + r[0] + " deg x");
+    near(p.y, r[2], 0.001, "dial point " + r[0] + " deg y");
+  });
+  report(C.SUN_COMPASS && C.SUN_COMPASS.maxAlt > 45 && C.SUN_COMPASS.maxAlt < 90, "sun compass maxAlt between 45 and 90");
+
   function hoursDiff(d, s) { return d ? (d - sast(s)) / 36e5 : null; }
   near(hoursDiff(A.nextPhase(sast("2026-11-03 12:00"), 0.5), "2026-11-24 16:53"), 0, 8, "next full moon after 3 Nov, hours");
   near(hoursDiff(A.nextPhase(sast("2026-11-03 12:00"), 0), "2026-11-09 09:02"), 0, 8, "next new moon after 3 Nov, hours");

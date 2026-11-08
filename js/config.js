@@ -90,6 +90,11 @@
   var LOOP = { frames: 3, gapMin: 10, maxAgeMin: 90, keep: 6, frameMs: 800, holdMs: 1800 };
   var FRAMES_URL = "radar/frames.json";
 
+  // Sun & moon compass dial: above maxAlt degrees the body is nearly overhead and
+  // its bearing can't be aimed, so it's drawn faded and tagged "too high to aim"
+  // (the summer sun in Gauteng reaches ~87 deg at noon).
+  var SUN_COMPASS = { maxAlt: 75 };
+
   window.SARWX_CONFIG = {
     LOCATIONS: LOCATIONS,
     ASTRO_DEFAULT: ASTRO_DEFAULT,
@@ -103,6 +108,7 @@
     RADAR_STALE_MIN: RADAR_STALE_MIN,
     LOOP: LOOP,
     FRAMES_URL: FRAMES_URL,
+    SUN_COMPASS: SUN_COMPASS,
     TIMEZONE: "Africa/Johannesburg"
   };
 })();
